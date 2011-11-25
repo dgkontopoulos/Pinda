@@ -93,19 +93,23 @@ if ( !$query->param )    #Homepage
     print <<"ENDHTML";
     <center>
     <p style='width: 470px; text-align:left;margin-bottom:1px;margin-top:1px'>
-    <br><font size='3.5' face='Georgia' color='330033'><i>Please enter a sequence.</i></font><br>
+    <br><font size='3' face='Georgia' color='330033'>
+    <i>Please enter a sequence.</i>
+    </font><br>
     <form id = 'submit' method = 'post' action=$0>
-    <textarea name='sequence' rows=7 cols=55 style='font-family:courier new' ></textarea>
+    <textarea name='sequence' rows=7 cols=55 style='font-family:courier new'></textarea>
     </p><br>
     <p style='width: 470px; text-align:left;margin-bottom:1px;margin-top:1px'>
-    <font size='3.5' face='Georgia' color='330033'><i>Please choose a database.</i></font><br>
+    <font size='3' face='Georgia' color='330033'><i>Please choose a database.</i></font><br>
     <center>
+    <font size='2'>
     <input type="radio" name="db" value="Swiss-Prot" checked> <b>Swiss-Prot</b>
     <input type="radio" name="db" value="UniProt"> <b>UniProt</b> (<i>Swiss-Prot + TrEMBL</i>)
+    </font>
     </center>
     </p><br>
     <p style='width: 470px; text-align:left;margin-bottom:1px;margin-top:1px'>
-    <font size='3.5' face='Georgia' color='330033'><i>Please enter a valid email address so that you can be notified upon job completion.</i></font><br>
+    <font size='3' face='Georgia' color='330033'><i>Please enter a valid email address so that you can be notified upon job completion.</i></font><br>
     </p>
     <center>
     <input type='text' name='email' size="40" maxlength="60"></input>

@@ -222,7 +222,13 @@ ENDHTML
 ENDHTML
         exit;
     }
-
+    
+    print <<"ENDHTML";
+    <div id="loading" class='unhidden'>
+    <br><br<br><br><br>
+    <center><img src="../loading.gif"></center><br>
+    </div>
+ENDHTML
     #Get process id and set BLAST parameters#
     $prid = $$;
     $tmp  = '../tmps/blastp/' . $prid . '.tmp';
@@ -295,9 +301,15 @@ ENDHTML
     print <<"ENDHTML";
     <input type=hidden name='prid' value='$prid'>
     <input type=hidden name='db' value='$db'>
+    <input type=hidden name='email' value='$email'>
     </select></div><input type=submit name='dropdown' value='OK'>
     </form>
     </p>
+    
+    <script type="text/javascript">
+    document.getElementById("loading").className = "hidden";
+    </script>
+    
     </body>
     </html>
 ENDHTML
@@ -305,11 +317,13 @@ ENDHTML
 
 elsif ($query->param('organism')
     && $query->param('prid')
-    && $query->param('db') )
+    && $query->param('db')
+    && $query->param('email'))
 {
     my $organism = $query->param('organism');
     my $prid     = $query->param('prid');
     my $db       = $query->param('db');
+    my $email    = $query->param('email');
 
     $tmp = '../tmps/blastp/' . $prid . '.tmp';
     $out = '../outs/psiblast/' . $prid . '.tmp';
@@ -322,7 +336,7 @@ elsif ($query->param('organism')
     alarm $timeout;
 
     $number_of_cpus = Sys::CPU::cpu_count();    # get the number of cpu cores
-`legacy_blast.pl blastpgp -i $tmp -b 2000 -j 50 -d $db -a $number_of_cpus -o $out`;
+`legacy_blast.pl blastpgp -i $tmp -b 7000 -j 50 -d $db -a $number_of_cpus -o $out`;
 
     open $out_fh, '<', $out;
     while ( $line = <$out_fh> )
@@ -478,6 +492,7 @@ elsif ($query->param('organism')
     <input type=hidden name='alns' value='$alns'>
     <input type=hidden name='sequences' value='$sequences'>
     <input type=hidden name='prid' value='$prid'>
+    <input type=hidden name='email' value='$email'>
     <input type=submit name='button' value=' Click here to view the results. '>
     </FORM>
     </center>
@@ -489,14 +504,15 @@ ENDHTML
 #Results page for defined organism.#
 elsif ( $query->param('button') eq ' Click here to view the results. ' )
 {
-    $results   = $query->param('results');
-    $alns      = $query->param('alns');
-    $sequences = $query->param('sequences');
-    $prid      = $query->param('prid');
-    $fnaln     = '/web/results/final_alns/multalign/' . $prid . '.aln';
-    $ph        = '/web/results/trees/phs/' . $prid . '.ph';
-    $phb       = '/web/results/trees/phbs/' . $prid . '.phb';
-    $drawntree = '/web/results/trees/drawn/' . $prid . '.png';
+    my $results   = $query->param('results');
+    my $alns      = $query->param('alns');
+    my $sequences = $query->param('sequences');
+    my $prid      = $query->param('prid');
+    my $email     = $query->param('email');
+    my $fnaln     = '/web/results/final_alns/multalign/' . $prid . '.aln';
+    my $ph        = '/web/results/trees/phs/' . $prid . '.ph';
+    my $phb       = '/web/results/trees/phbs/' . $prid . '.phb';
+    my $drawntree = '/web/results/trees/drawn/' . $prid . '.png';
     open $results_fh, '<', $results;
     open $alns_fh,    '<', $alns;
     print <<"ENDHTML";
@@ -544,13 +560,14 @@ ENDHTML
     }
     close $sequences_fh;
 
+    $email =~ s/([\@])/\\$1/;
     if ( $sequences_number > 3 )
     {
 
         #Alignment, NJ tree plotting and bootstrapping.#
-        tcoffee( $sequences, $fnaln );
+        tcoffee( $sequences, $fnaln, $email );
         `clustalw -INFILE=$fnaln -OUTFILE=$ph -tree`;
-        `clustalw -INFILE=$fnaln -OUTFILE=$phb -bootstrap=100 -bootlabels=node`;
+        `clustalw -INFILE=$fnaln -OUTFILE=$phb -bootstrap=10000 -bootlabels=node`;
         `rm *.dnd`;
         `mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
 `mv /web/results/final_alns/multalign/$prid.phb /web/results/trees/phbs/`;
@@ -592,7 +609,7 @@ ENDHTML
             The number of sequences for this particular organism is three.
             <br><b>The phylogenetic tree cannot be bootstrapped.</b></font>
 ENDHTML
-            tcoffee( $sequences, $fnaln );
+            tcoffee( $sequences, $fnaln, $email );
             `clustalw -INFILE=$fnaln -OUTFILE=$ph -tree`;
 `mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
             `rm *.dnd`;
@@ -613,7 +630,7 @@ ENDHTML
 ENDHTML
             if ( $sequences_number > 1 )
             {
-                tcoffee( $sequences, $fnaln );
+                tcoffee( $sequences, $fnaln, $email );
                 print <<"ENDHTML";
                 <br><font size='3' face='Georgia' color='330033'><br>
                 <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a></font>
@@ -632,6 +649,6 @@ sub tcoffee    #Pretty self-explanatory.
     export TMP="/web/t-coffee/dir_4_t-coffee/tmp/" ;
     export NO_ERROR_REPORT_4_TCOFFEE='1' ;
     export NO_WARNING_4_TCOFFEE='1' ;
-    t_coffee -infile $_[0] -outfile $_[1] -proxy -email=dgkontopoulos\@gmail.com`;
+    t_coffee -infile $_[0] -outfile $_[1] -proxy -email=$_[2]`;
     return;
 }

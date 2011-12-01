@@ -14,10 +14,13 @@ use Bio::Search::Result::BlastResult;
 use Bio::Root::IO;
 use Bio::Search::Iteration::GenericIteration;
 use Bio::AlignIO;
-use CGI;
+use CGI::Fast qw(:standard);
 use Data::Validate::Email qw(is_email);
 use List::MoreUtils qw(uniq);
 use Sys::CPU;
+use Bio::TreeIO;
+use Bio::Tree::TreeI;
+use Bio::Tree::TreeFunctionsI;
 
 use strict;
 use warnings;
@@ -32,27 +35,30 @@ my $iteration_number = 0;
 my $it_exit          = 0;
 my $jac              = 0;
 my $list             = 0;
+my $p                = 0;
+my $parse_counter    = 0;
 my $pc_id            = 0;
 my $resnum           = 0;
 my $resnum2          = 0;
 my $yacounter        = 0;
-my (
-    $acnumber,     $alignment,  $alns,           $alns_fh,
-    $des,          $drawntree,  $fnaln,          $hit,
-    $i,            $line,       $line2,          $match_line,
-    $matchreg,     $mikos,      $number_of_cpus, $one,
-    $org,          $org1,       $organism,       $out,
-    $out_fh,       $ph,         $phb,            $prid,
-    $results,      $results_fh, $sequence,       $sequences,
-    $sequences_fh, $tmp,        $tmp_fh,         $tree_fh,
-    @accession,    @alignments, @numero,         @organism,
-    @organism2,    @reslines,   @score,          @seq,
-    @seq2,         @evalue,     @tree
+my ($acnumber,     $alignment,      $alns,      $alns_fh,
+    $des,          $drawntree,      $fnaln,     $gene,
+    $hit,          $i,              $line,      $line2,
+    $match_line,   $matchreg,       $mikos,     $needed,
+    $nod,          $number_of_cpus, $one,       $original,
+    $org,          $org1,           $organism,  $out,
+    $out_fh,       $ph,             $phb,       $prid,
+    $results,      $results_fh,     $sequence,  $sequences,
+    $sequences_fh, $tmp,            $tmp_fh,    $tree_fh,
+    @accession,    @alignments,     @nodes,     @nodes2,
+    @numero,       @organism,       @organism2, @possible,
+    @reslines,     @score,          @seq,       @seq2,
+    @evalue,       @tree
 );
 
 open STDERR, '>', '/dev/null';
 
-my $query = CGI->new;
+my $query = CGI::Fast->new;
 print $query->header;
 print <<"ENDHTML";
 <!DOCTYPE html
@@ -146,7 +152,7 @@ ENDHTML
     if ( $string !~ /[DEFHIKLMNPQRSVWY]/i )
     {
         print <<"ENDHTML";
-        <br><br<br><br><br>
+        <br><br<br><br><br><br>
         <font size='2' face='Georgia' color='330033'>
         THAT... IS... DNA!
         </font>
@@ -167,7 +173,7 @@ ENDHTML
                 || ( $' =~ /^\s+$/ ) )
             {
                 print <<"ENDHTML";
-                <br><br<br><br><br>
+                <br><br<br><br><br><br>
                 <font size='2' face='Georgia' color='330033'>
                 <b>ERROR!</b> No sequence entered!<br><br>
                 Please <a href='javascript:history.go(-1)'><u>go back</u></a> and enter a sequence.
@@ -178,7 +184,7 @@ ENDHTML
             elsif ( $' !~ /[DEFHIKLMNPQRSVWY]/i )
             {
                 print <<"ENDHTML";
-                <br><br<br><br><br>
+                <br><br<br><br><br><br>
                 <font size='2' face='Georgia' color='330033'>
                 THAT... IS... DNA!
                 </font>
@@ -203,7 +209,7 @@ ENDHTML
         || ( $email =~ /^\s+$/ ) )
     {
         print <<"ENDHTML";
-        <br><br<br><br><br>
+        <br><br<br><br><br><br>
         <font size='2' face='Georgia' color='330033'>
         <b>ERROR!</b> No email address entered!<br><br>
         Please <a href='javascript:history.go(-1)'><u>go back</u></a> and enter a valid email address.
@@ -214,7 +220,7 @@ ENDHTML
     elsif ( !is_email($email) )
     {
         print <<"ENDHTML";
-        <br><br<br><br><br>
+        <br><br<br><br><br><br>
         <font size='2' face='Georgia' color='330033'>
         <b>ERROR!</b> The email address does not appear to be valid!<br><br>
         Please <a href='javascript:history.go(-1)'><u>go back</u></a> and enter a valid email address.
@@ -222,13 +228,14 @@ ENDHTML
 ENDHTML
         exit;
     }
-    
+
     print <<"ENDHTML";
     <div id="loading" class='unhidden'>
-    <br><br<br><br><br>
+    <br><br<br><br><br><br>
     <center><img src="../loading.gif"></center><br>
     </div>
 ENDHTML
+
     #Get process id and set BLAST parameters#
     $prid = $$;
     $tmp  = '../tmps/blastp/' . $prid . '.tmp';
@@ -264,8 +271,8 @@ ENDHTML
                     if ( $des =~ /OS\=(\w+)\s+(\w+)/ )
                     {
                         $org = $1 . ' ' . $2;
-                        $organism[$list] =
-                          $org;    # Populate the organism dropdown list.
+                        $organism[$list]
+                            = $org;    # Populate the organism dropdown list.
                         $list++;
                     }
                 }
@@ -280,7 +287,7 @@ ENDHTML
     {
         print <<"ENDHTML";
         <font size='2' face='Georgia' color='330033'>
-        <br><br<br><br><br>
+        <br><br<br><br><br><br>
         It seems that the organism source is <b>$organism</b>. Is this correct?
         </font><br>
 ENDHTML
@@ -318,7 +325,7 @@ ENDHTML
 elsif ($query->param('organism')
     && $query->param('prid')
     && $query->param('db')
-    && $query->param('email'))
+    && $query->param('email') )
 {
     my $organism = $query->param('organism');
     my $prid     = $query->param('prid');
@@ -336,7 +343,7 @@ elsif ($query->param('organism')
     alarm $timeout;
 
     $number_of_cpus = Sys::CPU::cpu_count();    # get the number of cpu cores
-`legacy_blast.pl blastpgp -i $tmp -b 7000 -j 50 -d $db -a $number_of_cpus -o $out`;
+    `legacy_blast.pl blastpgp -i $tmp -b 7000 -j 50 -d $db -a $number_of_cpus -o $out`;
 
     open $out_fh, '<', $out;
     while ( $line = <$out_fh> )
@@ -440,9 +447,9 @@ elsif ($query->param('organism')
                                 $match_line = $hsp->hit_string() . "\n";
                                 $match_line =~ tr/- //d;
                                 $seq[$number] = ">$accession[$number] $org1\n"
-                                  . $match_line . "\n";
+                                    . $match_line . "\n";
                                 print {$results_fh}
-"<tr><td><p style='text-align:right;margin-bottom:1px;margin-top:1px'><center>$accession[$number]</center></td> <td><center>$score[$number]</center></td> <td><center>$evalue[$number]</center></td></tr>\n\n";
+                                    "<tr><td><p style='text-align:right;margin-bottom:1px;margin-top:1px'><center>$accession[$number]</center></td> <td><center>$score[$number]</center></td> <td><center>$evalue[$number]</center></td></tr>\n\n";
                                 $number++;
                             }
                             $hit_old = $acnumber;
@@ -513,52 +520,18 @@ elsif ( $query->param('button') eq ' Click here to view the results. ' )
     my $ph        = '/web/results/trees/phs/' . $prid . '.ph';
     my $phb       = '/web/results/trees/phbs/' . $prid . '.phb';
     my $drawntree = '/web/results/trees/drawn/' . $prid . '.png';
-    open $results_fh, '<', $results;
-    open $alns_fh,    '<', $alns;
-    print <<"ENDHTML";
-    <center>
-    <table border='1'><font face='Courier New'>
-    <tr><td bgcolor=#FFFF66><b><center>UniProt ID</b></center></td>
-    <td bgcolor=#FFFF66><center><b>Score</b><center></td>
-    <td bgcolor=#FFFF66><center><b>E-value</b></center></td>
-    </tr>
-ENDHTML
-    $/ = "\n\n";
 
-    while ( $line = <$results_fh> )
-    {
-        if ( $line =~ /<center>(\w+)<\/center>/ )
-        {
-            $matchreg = $1;
-            $/        = "\n\n\n\n";
-            while ( $line2 = <$alns_fh> )
-            {
-                if ( $line2 =~ /$matchreg/ )
-                {
-                    print $line;
-                    print <<"ENDHTML";
-                    <tr><td colspan ='4'>
-                    <pre><p style='width: 650px; text-align:left'>
-                    <font size='1' face='Courier New'>$line2
-                    </p></pre></tr></td>
-ENDHTML
-                }
-            }
-            close $alns_fh;
-            open $alns_fh, '<', $alns;
-            $/ = "\n\n";
-        }
-    }
-    print '</table>';
-    close $alns_fh;
-    close $results_fh;
-    $/ = "\n\n";
     open $sequences_fh, '<', $sequences;
     while ( $line = <$sequences_fh> )
     {
         $sequences_number++;
     }
     close $sequences_fh;
+
+    my $timeout = 60;
+    print "<!--\n";
+    $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
+    alarm $timeout;
 
     $email =~ s/([\@])/\\$1/;
     if ( $sequences_number > 3 )
@@ -567,10 +540,10 @@ ENDHTML
         #Alignment, NJ tree plotting and bootstrapping.#
         tcoffee( $sequences, $fnaln, $email );
         `clustalw -INFILE=$fnaln -OUTFILE=$ph -tree`;
-        `clustalw -INFILE=$fnaln -OUTFILE=$phb -bootstrap=10000 -bootlabels=node`;
+        `clustalw -INFILE=$fnaln -OUTFILE=$phb -bootstrap=1000 -bootlabels=node`;
         `rm *.dnd`;
         `mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
-`mv /web/results/final_alns/multalign/$prid.phb /web/results/trees/phbs/`;
+        `mv /web/results/final_alns/multalign/$prid.phb /web/results/trees/phbs/`;
 
         open $tree_fh, '<', $phb;
         $/ = "\n";
@@ -578,7 +551,7 @@ ENDHTML
         {
             $line =~ s/TRICHOTOMY//;    #Remove the 'TRICHOTOMY' word.
             $line =~ s/-\d[.]\d*/0/
-              ; #Fix NJ negative branch length artifact, by setting those numbers to zero.
+                ; #Fix NJ negative branch length artifact, by setting those numbers to zero.
             $tree[$yacounter] = $line;
             $yacounter++;
         }
@@ -590,14 +563,87 @@ ENDHTML
         }
         close $tree_fh;
         `./Pinda.R $drawntree $phb`;    #Visually draw the tree.
-        print
-          "<br><center><img src='../results/trees/drawn/$prid.png'></center>";
+
+        open $tree_fh, '<', $phb;
+        while ( $line = <$tree_fh> )
+        {
+            if ( $line =~ /\*\*\*(\w+)\*\*\*/ )
+            {
+                $needed = '***' . $1 . '***';
+            }
+        }
+        close $tree_fh;
+        my $treeio = Bio::TreeIO->new(
+            -format           => 'newick',
+            -file             => $phb,
+            -internal_node_id => 'bootstrap'
+        );
+        while ( my $tree = $treeio->next_tree )
+        {
+            my $node = $tree->find_node( -id => $needed );
+            my @nodes = $tree->get_lineage_nodes($node);
+            @nodes2 = reverse(@nodes);
+            foreach $nod (@nodes2)
+            {
+                for my $child ( $nod->each_Descendent )
+                {
+                    if ( defined $nod->bootstrap && $nod->bootstrap >= 50
+                        || !( defined $nod->bootstrap ) )
+                    {
+                        if ( defined $child->bootstrap
+                            && $child->bootstrap >= 50 )
+                        {
+                            $parse_counter++;
+                        }
+                        elsif ( defined $child->id && $child->id ne "" )
+                        {
+                            $possible[$p] = $child->id;
+                            $parse_counter++;
+                            $p++;
+                        }
+                    }
+                }
+                if ( $parse_counter != 2 )
+                {
+                    goto EXIT;
+                }
+                $parse_counter = 0;
+            }
+        }
+    EXIT:
+        alarm 0;
+        $needed =~ /\*\*\*(\w+)\*\*\*/;
+        $original = $1;
         print <<"ENDHTML";
-        <br><br><font size='3' face='Georgia' color='330033'>
+        -->
+        <center><br><font size='3' face='Georgia' color='330033'>
         <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <a href=../results/trees/phs/$prid.ph>NJ Tree</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <a href=../results/trees/phbs/$prid.phb>Bootstrapped NJ Tree</a>
+        <br><br><br>
+        <table border="1">
+        <tr>
+        <td bgcolor=#FFFFE0><center>
+        <b><u>Possible duplications related to
+        <a href="http://www.uniprot.org/uniprot/$original">$original</u></b></a>
+        </center></td></tr>
+ENDHTML
+        foreach $gene (@possible)
+        {
+            if ( $gene ne $needed )
+            {
+                print <<"ENDHTML";
+                <tr><td><center>
+                >&nbsp;&nbsp;&nbsp;<a href="http://www.uniprot.org/uniprot/$gene">$gene</a>
+                </center></td></tr>
+ENDHTML
+            }
+        }
+        print <<"ENDHTML";
         </font>
+        </table>
+        <br><br>
+        <img src='../results/trees/drawn/$prid.png'>
 ENDHTML
     }
     else
@@ -611,14 +657,14 @@ ENDHTML
 ENDHTML
             tcoffee( $sequences, $fnaln, $email );
             `clustalw -INFILE=$fnaln -OUTFILE=$ph -tree`;
-`mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
+            `mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
             `rm *.dnd`;
             `./Pinda.R $drawntree $ph`;
             print <<"ENDHTML";
-            <br><center><img src='../results/trees/drawn/$prid.png'></center>
-            <br><font size='3' face='Georgia' color='330033'><br>
+            <center><br><font size='3' face='Georgia' color='330033'><br>
             <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
             <a href=../results/trees/phs/$prid.ph>NJ Tree</a></font>
+            <br><br><center><img src='../results/trees/drawn/$prid.png'></center>
 ENDHTML
         }
         if ( $sequences_number < 3 )
@@ -649,6 +695,6 @@ sub tcoffee    #Pretty self-explanatory.
     export TMP="/web/t-coffee/dir_4_t-coffee/tmp/" ;
     export NO_ERROR_REPORT_4_TCOFFEE='1' ;
     export NO_WARNING_4_TCOFFEE='1' ;
-    t_coffee -infile $_[0] -outfile $_[1] -proxy -email=$_[2]`;
+    t_coffee -infile $_[0] -output=clustal,fasta_aln -outfile $_[1] -proxy -email=$_[2]`;
     return;
 }

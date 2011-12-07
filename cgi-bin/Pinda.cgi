@@ -22,8 +22,8 @@ use Bio::TreeIO;
 use Bio::Tree::TreeI;
 use Bio::Tree::TreeFunctionsI;
 
-use strict;
-use warnings;
+#use strict;
+#use warnings;
 
 my $Swissprot        = '../databases/Swissprot/uniprot_sprot.fasta';
 my $UniProt          = '../databases/TrEMBL/uniprot.fasta';
@@ -45,20 +45,20 @@ my $resnum           = 0;
 my $resnum2          = 0;
 my $yacounter        = 0;
 my (
-    $acnumber,       $alignment, $alns,      $alns_fh,
-    $bvdiv,          $des,       $drawntree, $fnaln,
-    $ge_url,         $gene,      $genepo,    $hit,
-    $i,              $line,      $line2,     $match_line,
-    $matchreg,       $mikos,     $needed,    $nod,
-    $number_of_cpus, $one,       $original,  $org,
-    $org1,           $organism,  $out,       $out_fh,
-    $ph,             $phb,       $prid,      $results,
-    $results_fh,     $sequence,  $sequences, $sequences_fh,
-    $tmp,            $tmp_fh,    $tree_fh,   @accession,
-    @alignments,     @nodes,     @nodes2,    @numero,
-    @organism,       @organism2, @possible,  @possible2,
-    @reslines,       @score,     @seq,       @seq2,
-    @evalue,         @tree
+    $acnumber,       $alignment,  $alns,      $alns_fh,
+    $bvdiv,          $des,        $drawntree, $fnaln,
+    $ge_url,         $gene,       $genepo,    $hit,
+    $i,              $line,       $line2,     $match_line,
+    $matchreg,       $mikos,      $needed,    $nod,
+    $number_of_cpus, $one,        $original,  $org,
+    $org1,           $organism,   $out,       $out_fh,
+    $ph,             $phb,        $pos,       $prid,
+    $results,        $results_fh, $sequence,  $sequences,
+    $sequences_fh,   $tmp,        $tmp_fh,    $tree_fh,
+    @accession,      @alignments, @nodes,     @nodes2,
+    @numero,         @organism,   @organism2, @possible,
+    @possible2,      @reslines,   @score,     @seq,
+    @seq2,           @evalue,     @tree
 );
 
 open STDERR, '>', '/dev/null';
@@ -526,6 +526,7 @@ elsif ( $query->param('button') eq ' Click here to view the results. ' )
     my $phb       = '/web/results/trees/phbs/' . $prid . '.phb';
     my $drawntree = '/web/results/trees/drawn/' . $prid . '.png';
 
+    $/ = "\n\n";
     open $sequences_fh, '<', $sequences;
     while ( $line = <$sequences_fh> )
     {
@@ -534,9 +535,10 @@ elsif ( $query->param('button') eq ' Click here to view the results. ' )
     close $sequences_fh;
 
     my $timeout = 60;
-    print "<!--\n";
-    $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
-    alarm $timeout;
+
+    #print "<!--\n";
+    #$SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
+    #alarm $timeout;
 
     $email =~ s/([\@])/\\$1/;
     if ( $sequences_number > 3 )
@@ -595,33 +597,38 @@ elsif ( $query->param('button') eq ' Click here to view the results. ' )
             @nodes2 = reverse(@nodes);
             foreach $nod (@nodes2)
             {
-                for my $child ( $nod->each_Descendent )
+                for my $child ( $nod->get_all_Descendents )
                 {
-                    if ( defined $child->bootstrap )
+                    if ( defined $child->id && $child->id ne "" )
                     {
-                        $parse_counter++;
-                    }
-                    elsif ( defined $child->id && $child->id ne "" )
-                    {
-                        if ( defined $nod->bootstrap )
+                        $is_there = grep $_ eq $child->id, @possible;
+                        if ( $is_there == '0' )
                         {
-                            $bscounter *= ( $nod->bootstrap ) / 100.0;
+                            if ( defined $nod->bootstrap && $nodcheck != $nod)
+                            {
+                                $bscounter *= ($nod->bootstrap) / 100.0;
+                            }
+                            $possible[$p]  = $child->id;
+                            $possible2[$p] = $bscounter;
+                            $p++;
                         }
-                        $possible[$p]  = $child->id;
-                        $possible2[$p] = $bscounter;
-                        $parse_counter++;
-                        $p++;
+                        $nodcheck = $nod;
+                    }
+                    else
+                    {
+                        if ( defined $nod->bootstrap && $nodcheck != $nod )
+                        {
+                            $bscounter *= ($nod->bootstrap) / 100.0;
+                            $possible2[$p] = $bscounter;
+                        }
+                        $nodcheck = $nod;
+                        $nod = $child;
                     }
                 }
-                if ( $parse_counter != 2 )
-                {
-                    goto EXIT;
-                }
-                $parse_counter = 0;
             }
-        }
-      EXIT:
-        alarm 0;
+         }
+
+        #   alarm 0;
         $needed =~ /[***](\w+)[***]/;
         $original = $1;
         print <<"ENDHTML";
@@ -688,6 +695,7 @@ ENDHTML
         }
         if ( $sequences_number < 3 )
         {
+            alarm 0;
             print <<"ENDHTML";
             <font size='3' face='Georgia' color='330033'><br><br>
             The number of sequences for this particular organism is less than three.<br><b>

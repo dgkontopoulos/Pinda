@@ -29,9 +29,12 @@ my $Swissprot        = '../databases/Swissprot/uniprot_sprot.fasta';
 my $UniProt          = '../databases/TrEMBL/uniprot.fasta';
 my $alncounter       = 0;
 my $bscounter        = 1;
+my $cancounter       = 0;
 my $gcounter         = 0;
+my $ginomenon        = 1;
 my $hit_old          = 0;
 my $it_counting      = 0;
+my $linocounter      = 0;
 my $sequences_number = 0;
 my $iteration_number = 0;
 my $it_exit          = 0;
@@ -39,10 +42,13 @@ my $jac              = 0;
 my $list             = 0;
 my $p                = 0;
 my $p2               = 0;
+my $pathcounter      = 0;
 my $parse_counter    = 0;
 my $pc_id            = 0;
 my $resnum           = 0;
 my $resnum2          = 0;
+my $sscounter        = 0;
+my $unicounter       = 0;
 my $yacounter        = 0;
 my (
     $acnumber,       $alignment,  $alns,      $alns_fh,
@@ -255,7 +261,7 @@ ENDHTML
     alarm $timeout;
 
     $number_of_cpus = Sys::CPU::cpu_count();    # get the number of cpu cores
-    `blastp -query $tmp -db $db -num_threads $number_of_cpus -out $out`;
+`blastp -query $tmp -db $db -evalue 0.00000001 -num_threads $number_of_cpus -out $out`;
 
     my $blast = Bio::SearchIO->new(
         -format => 'blast',
@@ -536,9 +542,9 @@ elsif ( $query->param('button') eq ' Click here to view the results. ' )
 
     my $timeout = 60;
 
-    #print "<!--\n";
-    #$SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
-    #alarm $timeout;
+    print "<!--\n";
+    $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
+    alarm $timeout;
 
     $email =~ s/([\@])/\\$1/;
     if ( $sequences_number > 3 )
@@ -574,103 +580,36 @@ elsif ( $query->param('button') eq ' Click here to view the results. ' )
             print {$tree_fh} $yacounter;
         }
         close $tree_fh;
-        `./Pinda.R $drawntree $phb`;    #Visually draw the tree.
+        `./Pinda.R $drawntree $phb > /web/parsing/$prid.tmp`
+          ;    #Visually draw the tree.
 
-        open $tree_fh, '<', $phb;
-        while ( $line = <$tree_fh> )
-        {
-            if ( $line =~ /\*\*\*(\w+)\*\*\*/ )
-            {
-                $needed = '***' . $1 . '***';
-            }
-        }
-        close $tree_fh;
-        my $treeio = Bio::TreeIO->new(
-            -format           => 'newick',
-            -file             => $phb,
-            -internal_node_id => 'bootstrap'
-        );
-        while ( my $tree = $treeio->next_tree )
-        {
-            my $node = $tree->find_node( -id => $needed );
-            my @nodes = $tree->get_lineage_nodes($node);
-            @nodes2 = reverse(@nodes);
-            foreach $nod (@nodes2)
-            {
-                for my $child ( $nod->get_all_Descendents )
-                {
-                    if ( defined $child->id && $child->id ne "" )
-                    {
-                        $is_there = grep $_ eq $child->id, @possible;
-                        if ( $is_there == '0' )
-                        {
-                            if ( defined $nod->bootstrap && $nodcheck != $nod)
-                            {
-                                $bscounter *= ($nod->bootstrap) / 100.0;
-                            }
-                            $possible[$p]  = $child->id;
-                            $possible2[$p] = $bscounter;
-                            $p++;
-                        }
-                        $nodcheck = $nod;
-                    }
-                    else
-                    {
-                        if ( defined $nod->bootstrap && $nodcheck != $nod )
-                        {
-                            $bscounter *= ($nod->bootstrap) / 100.0;
-                            $possible2[$p] = $bscounter;
-                        }
-                        $nodcheck = $nod;
-                        $nod = $child;
-                    }
-                }
-            }
-         }
-
-        #   alarm 0;
-        $needed =~ /[***](\w+)[***]/;
-        $original = $1;
+        alarm 0;
+        open $tree_for_parsingfh, '<', "../parsing/$prid.tmp";
+        parser();
+        close $tree_for_parsingfh;
+        @candidate = sort @candidate;
+        @candidate = reverse @candidate;
         print <<"ENDHTML";
         -->
         <center><br><font size='3' face='Georgia' color='330033'>
         <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <a href=../results/trees/phs/$prid.ph>NJ Tree</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         <a href=../results/trees/phbs/$prid.phb>Bootstrapped NJ Tree</a>
-        <br><br><br>
-        <table border="1">
-        <tr bgcolor=#FFFFE0>
-        <td><center>
-        <b><u>Possible duplications of
-        <a href="http://www.uniprot.org/uniprot/$original">$original</u></b></a>
-        </center></td>
-        <td><b><center>P</center></b></td></tr>
-ENDHTML
-
-        for ( 0 .. $p - 1 )
-        {
-            $gene   = $possible[$gcounter];
-            $genepo = $possible2[$gcounter];
-            if ( $gene !~ /[***]/ )
-            {
-                $gene =~ /[***]?(\w+)[***]?/;
-                $ge_url = $1;
-                print <<"ENDHTML";
-                <tr><td><center>
-                >&nbsp;&nbsp;&nbsp;<a href="http://www.uniprot.org/uniprot/$ge_url">$gene</a>
-                </center></td>
-                <td><center>$genepo</center>
-                </td></tr>
-ENDHTML
-            }
-            $gcounter++;
-        }
-        print <<"ENDHTML";
         </font>
-        </table>
         <br><br>
-        <img src='../results/trees/drawn/$prid.png'>
+        <table border='1'>
+        <tr bgcolor=FFFF66><th><center>Possible duplications of <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point</a>.</center></th>
+        <th><center>P</center></th></tr>
 ENDHTML
+        foreach $can (@candidate)
+        {
+            if ($can !~ /$starting_point/ && $can =~ /(\d?.?\d+) (\w+)/)
+            {
+                print "<tr><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td><td align=left>$1</td></tr>";
+            }
+        }
+        print "</table>";
+        print "<img src='../results/trees/drawn/$prid.png'>";
     }
     else
     {
@@ -725,4 +664,142 @@ sub tcoffee    #Pretty self-explanatory.
     export NO_WARNING_4_TCOFFEE='1' ;
     t_coffee -infile $_[0] -output=clustal,fasta_aln -outfile $_[1] -proxy -email=$_[2]`;
     return;
+}
+
+sub parser
+{
+    $/ = "\n\n";
+    while ( $line = <$tree_for_parsingfh> )
+    {
+        if ( $line =~ /\_\_\_(\w+)\_\_\_/ )
+        {
+            $starting_point = $1;
+            $uni_ids[$unicounter] = $1;
+            $unicounter++;
+        }
+        elsif ( $line =~ /"(\w{6})"/ )
+        {
+            if ( $1 !~ /_/ )
+            {
+                $uni_ids[$unicounter] = $1;
+                $unicounter++;
+            }
+        }
+        if ( $' =~ /"(\w{6})"/ && $1 !~ /_/ )
+        {
+
+            $uni_ids[$unicounter] = $1;
+            $unicounter++;
+        }
+        $parsing_lines[$linocounter] = $line;
+        $linocounter++;
+    }
+    foreach $line (@parsing_lines)
+    {
+        if ( $line =~ /$starting_point/ )
+        {
+            if ( $line =~ /parts\$X(\w+)/ )
+            {
+                $star_seq[$sscounter] = $1;
+                $search_id = $star_seq[$sscounter];
+                $sscounter++;
+            }
+            foreach $line (@parsing_lines)
+            {
+              LOOP0:
+                if ( $line =~ /$search_id"/ )
+                {
+                    if ( $line =~ /parts\$X(\w+)/ )
+                    {
+                        $star_seq[$sscounter] = $1;
+                        $search_id = $star_seq[$sscounter];
+                        $sscounter++;
+                        goto LOOP0;
+                    }
+                }
+            }
+        }
+    }
+    foreach $uni (@uni_ids)
+    {
+        $sscounter = 0;
+        foreach $line (@parsing_lines)
+        {
+            if ( $line =~ /$uni/ )
+            {
+                if ( $line =~ /parts\$X(\w+)/ )
+                {
+                    $compare_seq[$sscounter] = $1;
+                    $search_id = $compare_seq[$sscounter];
+                    $sscounter++;
+                }
+                foreach $line (@parsing_lines)
+                {
+                  LOOP:
+                    if ( $line =~ /$search_id"/ )
+                    {
+                        if ( $line =~ /parts\$X(\w+)/ )
+                        {
+                            $compare_seq[$sscounter] = $1;
+                            $search_id = $compare_seq[$sscounter];
+                            $sscounter++;
+                            goto LOOP;
+                        }
+                    }
+                }
+            }
+        }
+        foreach $node (@compare_seq)
+        {
+            if ( $node =~ /(\d+)\_?/ )
+            {
+                $ginomenon *= $1 / 100;
+            }
+            foreach $star_node (@star_seq)
+            {
+                if ( $node eq $star_node )
+                {
+                    foreach $star_node (@star_seq)
+                    {
+                        if ( $star_node ne $node && $star_node =~ /(\d+)\_?/ )
+                        {
+                            $ginomenon *= $1 / 100;
+                        }
+                        if ( $star_node eq $node )
+                        {
+                            goto EXIT0;
+                        }
+                    }
+                  EXIT0:
+                    if ($uni !~ /$starting_point/)
+                    {
+                        $candidate[$cancounter] = $ginomenon . " " . $uni;
+                        $cancounter++;
+                    }
+                    goto EXIT;
+                }
+            }
+        }
+        $ginomenon = 1;
+        foreach $node (@compare_seq)
+        {
+            if ( $node =~ /(\d+)\_?/ )
+            {
+                $ginomenon *= $1 / 100;
+            }
+        }
+        foreach $star_node (@star_seq)
+        {
+            if ( $star_node =~ /(\d+)\_?/ )
+            {
+                $ginomenon *= $1 / 100;
+            }
+        }
+        $candidate[$cancounter] = $ginomenon . " " . $uni;
+        $cancounter++;
+      EXIT:
+        $ginomenon   = 1;
+        @compare_seq = ();
+    }
+    return @candidate, $starting_point;
 }

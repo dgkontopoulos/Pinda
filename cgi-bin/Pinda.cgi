@@ -177,7 +177,7 @@ ENDHTML
             $string = ">\n" . $string;
         }
         if (   ( $string =~ /OS\=(\w+)\s+(\w+)/ )
-            || ( $string =~ /\[(\w+)\s+(\w+)\]/ ) )
+            || ( $string =~ /\[(\w+)\s+(\w+)/ ) )
         {
             $organism = $1 . ' ' . $2;
             if (   ( $' =~ /^$/ )
@@ -531,6 +531,7 @@ elsif ( $query->param('button') eq ' Click here to view the results. ' )
     my $ph        = '/web/results/trees/phs/' . $prid . '.ph';
     my $phb       = '/web/results/trees/phbs/' . $prid . '.phb';
     my $drawntree = '/web/results/trees/drawn/' . $prid . '.png';
+    my $zip       = '/web/results/trees/zips/' . $prid . '.zip';
 
     $/ = "\n\n";
     open $sequences_fh, '<', $sequences;
@@ -557,44 +558,22 @@ elsif ( $query->param('button') eq ' Click here to view the results. ' )
         `rm *.dnd`;
         `mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
 `mv /web/results/final_alns/multalign/$prid.phb /web/results/trees/phbs/`;
-
-        open $tree_fh, '<', $phb;
-        $/ = "\n";
-        while ( $line = <$tree_fh> )
-        {
-            $line =~ s/TRICHOTOMY//;    #Remove the 'TRICHOTOMY' word.
-            $line =~ s/-\d[.]\d*/0/
-              ; #Fix NJ negative branch length artifact, by setting those numbers to zero.
-            if ( $line =~ /^(\d+):/ )
-            {
-                $bvdiv = $1 / 10.0;
-                $line  = $` . $bvdiv . ":" . $';
-            }
-            $tree[$yacounter] = $line;
-            $yacounter++;
-        }
-        close $tree_fh;
-        open $tree_fh, '>', $phb;
-        foreach my $yacounter (@tree)
-        {
-            print {$tree_fh} $yacounter;
-        }
-        close $tree_fh;
-        `./Pinda.R $drawntree $phb > /web/parsing/$prid.tmp`
+         tree_manipulationI($phb);
+        `./Pinda.R -parser $phb > /web/parsing/$prid.tmp`;
+         tree_manipulationII($phb);
+        `zip -j $zip $ph $phb`;
+        `./Pinda.R $drawntree $phb`
           ;    #Visually draw the tree.
+        `rm $ph $phb`;
 
         alarm 0;
-        open $tree_for_parsingfh, '<', "../parsing/$prid.tmp";
-        parser();
-        close $tree_for_parsingfh;
-        @candidate = sort @candidate;
-        @candidate = reverse @candidate;
+
+        parser("../parsing/$prid.tmp");
         print <<"ENDHTML";
         -->
         <center><br><font size='3' face='Georgia' color='330033'>
         <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a href=../results/trees/phs/$prid.ph>NJ Tree</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a href=../results/trees/phbs/$prid.phb>Bootstrapped NJ Tree</a>
+        <a href=../results/trees/zips/$prid.zip>NJ Tree Produced</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         </font>
         <br><br>
         <table border='1'>
@@ -603,7 +582,7 @@ elsif ( $query->param('button') eq ' Click here to view the results. ' )
 ENDHTML
         foreach $can (@candidate)
         {
-            if ($can !~ /$starting_point/ && $can =~ /(\d?.?\d+) (\w+)/)
+            if ($can !~ /$starting_point/ && $can =~ /(\d?.?\d+e?-?\d*) (\w+)/)
             {
                 print "<tr><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td><td align=left>$1</td></tr>";
             }
@@ -615,35 +594,59 @@ ENDHTML
     {
         if ( $sequences_number == 3 )
         {
+            alarm 0;
             print <<"ENDHTML";
+            -->
             <font size='3' face='Georgia' color='330033'><br><br>
+            <center>
             The number of sequences for this particular organism is three.
-            <br><b>The phylogenetic tree cannot be bootstrapped.</b></font>
+            <br><b>The dendrogram cannot be bootstrapped.</b></font>
+            </center>
 ENDHTML
             tcoffee( $sequences, $fnaln, $email );
             `clustalw -INFILE=$fnaln -OUTFILE=$ph -tree`;
 `mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
             `rm *.dnd`;
-            `./Pinda.R $drawntree $ph`;
+            tree_manipulation($ph);
+            `./Pinda3hits.R $drawntree $ph > /web/parsing/$prid.tmp`;
+            `zip -j $zip $ph`;
+            `rm $ph`;
+            parser("../parsing/$prid.tmp");
             print <<"ENDHTML";
-            <center><br><font size='3' face='Georgia' color='330033'><br>
+            <center><br><font size='3' face='Georgia' color='330033'>
             <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            <a href=../results/trees/phs/$prid.ph>NJ Tree</a></font>
-            <br><br><center><img src='../results/trees/drawn/$prid.png'></center>
+            <a href=../results/trees/zips/$prid.zip>NJ Tree Produced</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            </font>
+            <br><br>
+            <table border='1'>
+            <tr bgcolor=FFFF66><th><center>Possible duplications of <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point</a>.</center></th>
+            <th><center>P</center></th></tr>
 ENDHTML
+            foreach $can (@candidate)
+            {
+                if ($can !~ /$starting_point/ && $can =~ /(\d?.?\d+) (\w+)/)
+                {
+                    print "<tr><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td><td align=left>$1</td></tr>";
+                }
+            }
+            print "</table>";
+            print "<img src='../results/trees/drawn/$prid.png'>";
         }
         if ( $sequences_number < 3 )
         {
             alarm 0;
             print <<"ENDHTML";
+            -->
             <font size='3' face='Georgia' color='330033'><br><br>
             The number of sequences for this particular organism is less than three.<br><b>
-            A phylogenetic tree cannot be plotted.</b></font>
+            A dendrogram cannot be plotted.</b></font>
 ENDHTML
             if ( $sequences_number > 1 )
             {
                 tcoffee( $sequences, $fnaln, $email );
+                alarm 0;
                 print <<"ENDHTML";
+                -->
                 <br><font size='3' face='Georgia' color='330033'><br>
                 <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a></font>
 ENDHTML
@@ -666,8 +669,55 @@ sub tcoffee    #Pretty self-explanatory.
     return;
 }
 
+sub tree_manipulationI
+{
+    open $tree_fh, '<', $_[0];
+    $/ = "\n";
+    while ( $line = <$tree_fh> )
+    {
+        $line =~ s/TRICHOTOMY//;    #Remove the 'TRICHOTOMY' word.
+        $line =~ s/-\d[.]\d*/0/
+          ; #Fix NJ negative branch length artifact, by setting those numbers to zero.
+        $tree[$yacounter] = $line;
+        $yacounter++;
+    }
+    close $tree_fh;
+    open $tree_fh, '>', $_[0];
+    foreach my $yacounter (@tree)
+    {
+        print {$tree_fh} $yacounter;
+    }
+    close $tree_fh;    
+}
+
+sub tree_manipulationII
+{
+    @tree = ();
+    $yacounter = 0;
+    open $tree_fh, '<', $_[0];
+    $/ = "\n";
+    while ( $line = <$tree_fh> )
+    {
+        if ( $line =~ /^(\d+):/ )
+        {
+            $bvdiv = $1 / 10.0;
+            $line  = $` . $bvdiv . ":" . $';
+        }
+        $tree[$yacounter] = $line;
+        $yacounter++;
+    }
+    close $tree_fh;
+    open $tree_fh, '>', $_[0];
+    foreach my $yacounter (@tree)
+    {
+        print {$tree_fh} $yacounter;
+    }
+    close $tree_fh;    
+}
+
 sub parser
 {
+    open $tree_for_parsingfh, '<', $_[0];
     $/ = "\n\n";
     while ( $line = <$tree_for_parsingfh> )
     {
@@ -741,7 +791,7 @@ sub parser
                         if ( $line =~ /parts\$X(\w+)/ )
                         {
                             $compare_seq[$sscounter] = $1;
-                            $search_id = $compare_seq[$sscounter];
+                            $search_id = 'X' . $compare_seq[$sscounter];
                             $sscounter++;
                             goto LOOP;
                         }
@@ -753,7 +803,7 @@ sub parser
         {
             if ( $node =~ /(\d+)\_?/ )
             {
-                $ginomenon *= $1 / 100;
+                $ginomenon *= $1 / 1000.0;
             }
             foreach $star_node (@star_seq)
             {
@@ -763,7 +813,7 @@ sub parser
                     {
                         if ( $star_node ne $node && $star_node =~ /(\d+)\_?/ )
                         {
-                            $ginomenon *= $1 / 100;
+                            $ginomenon *= $1 / 1000.0;
                         }
                         if ( $star_node eq $node )
                         {
@@ -785,14 +835,14 @@ sub parser
         {
             if ( $node =~ /(\d+)\_?/ )
             {
-                $ginomenon *= $1 / 100;
+                $ginomenon *= $1 / 1000.0;
             }
         }
         foreach $star_node (@star_seq)
         {
             if ( $star_node =~ /(\d+)\_?/ )
             {
-                $ginomenon *= $1 / 100;
+                $ginomenon *= $1 / 1000.0;
             }
         }
         $candidate[$cancounter] = $ginomenon . " " . $uni;
@@ -801,5 +851,8 @@ sub parser
         $ginomenon   = 1;
         @compare_seq = ();
     }
+    close $tree_for_parsingfh;
+    @candidate = sort {$a <=> $b} @candidate;
+    @candidate = reverse @candidate;    
     return @candidate, $starting_point;
 }

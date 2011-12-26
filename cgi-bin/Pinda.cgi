@@ -453,7 +453,7 @@ elsif ($query->param('organism')
                                 my $aln = $hsp->get_aln;
                                 $alignment->write_aln($aln);
                                 open $alns_fh, '>>', $alns;
-                                print {$alns_fh} "\n";
+                                print {$alns_fh} " \n";
                                 close $alns_fh;
                                 $match_line = $hsp->hit_string() . "\n";
                                 $match_line =~ tr/- //d;
@@ -560,6 +560,8 @@ elsif ( $query->param('button') eq ' Click here to view the results. ' )
 `mv /web/results/final_alns/multalign/$prid.phb /web/results/trees/phbs/`;
          tree_manipulationI($phb);
         `./Pinda.R -parser $phb > /web/parsing/$prid.tmp`;
+        `./Pinda.R -lengths_1 $phb > /web/parsing/$prid\_1.tmp`;
+        `./Pinda.R -lengths_2 $phb > /web/parsing/$prid\_2.tmp`;
          tree_manipulationII($phb);
         `zip -j $zip $ph $phb`;
         `./Pinda.R $drawntree $phb`
@@ -587,7 +589,7 @@ ENDHTML
                 print "<tr><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td><td align=left>$1</td></tr>";
             }
         }
-        print "</table>";
+        print '</table>';
         print "<img src='../results/trees/drawn/$prid.png'>";
     }
     else
@@ -608,7 +610,7 @@ ENDHTML
 `mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
             `rm *.dnd`;
             tree_manipulation($ph);
-            `./Pinda3hits.R $drawntree $ph > /web/parsing/$prid.tmp`;
+            `./Pinda.R $drawntree $ph > /web/parsing/$prid.tmp`;
             `zip -j $zip $ph`;
             `rm $ph`;
             parser("../parsing/$prid.tmp");
@@ -629,7 +631,7 @@ ENDHTML
                     print "<tr><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td><td align=left>$1</td></tr>";
                 }
             }
-            print "</table>";
+            print '</table>';
             print "<img src='../results/trees/drawn/$prid.png'>";
         }
         if ( $sequences_number < 3 )
@@ -701,7 +703,7 @@ sub tree_manipulationII
         if ( $line =~ /^(\d+):/ )
         {
             $bvdiv = $1 / 10.0;
-            $line  = $` . $bvdiv . ":" . $';
+            $line  = $` . $bvdiv . ':' . $';
         }
         $tree[$yacounter] = $line;
         $yacounter++;
@@ -823,7 +825,7 @@ sub parser
                   EXIT0:
                     if ($uni !~ /$starting_point/)
                     {
-                        $candidate[$cancounter] = $ginomenon . " " . $uni;
+                        $candidate[$cancounter] = $ginomenon . ' ' . $uni;
                         $cancounter++;
                     }
                     goto EXIT;
@@ -845,7 +847,7 @@ sub parser
                 $ginomenon *= $1 / 1000.0;
             }
         }
-        $candidate[$cancounter] = $ginomenon . " " . $uni;
+        $candidate[$cancounter] = $ginomenon . ' ' . $uni;
         $cancounter++;
       EXIT:
         $ginomenon   = 1;

@@ -503,30 +503,6 @@ elsif ($query->param('organism')
     }
     close $sequences_fh;
 
-    print <<"ENDHTML";
-    <form method ='post' action=$0>
-    <center>
-    <input type=hidden name='results' value='$results'>
-    <input type=hidden name='alns' value='$alns'>
-    <input type=hidden name='sequences' value='$sequences'>
-    <input type=hidden name='prid' value='$prid'>
-    <input type=hidden name='email' value='$email'>
-    <input type=submit name='button' value=' Click here to view the results. '>
-    </FORM>
-    </center>
-    </body>
-    </html>
-ENDHTML
-}
-
-#Results page for defined organism.#
-elsif ( $query->param('button') eq ' Click here to view the results. ' )
-{
-    my $results   = $query->param('results');
-    my $alns      = $query->param('alns');
-    my $sequences = $query->param('sequences');
-    my $prid      = $query->param('prid');
-    my $email     = $query->param('email');
     my $fnaln     = '/web/results/final_alns/multalign/' . $prid . '.aln';
     my $ph        = '/web/results/trees/phs/' . $prid . '.ph';
     my $phb       = '/web/results/trees/phbs/' . $prid . '.phb';
@@ -558,14 +534,13 @@ elsif ( $query->param('button') eq ' Click here to view the results. ' )
         `rm *.dnd`;
         `mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
 `mv /web/results/final_alns/multalign/$prid.phb /web/results/trees/phbs/`;
-         tree_manipulationI($phb);
+        tree_manipulationI($phb);
         `./Pinda.R -parser $phb > /web/parsing/$prid.tmp`;
         `./Pinda.R -lengths_1 $phb > /web/parsing/$prid\_1.tmp`;
         `./Pinda.R -lengths_2 $phb > /web/parsing/$prid\_2.tmp`;
-         tree_manipulationII($phb);
+        tree_manipulationII($phb);
         `zip -j $zip $ph $phb`;
-        `./Pinda.R $drawntree $phb`
-          ;    #Visually draw the tree.
+        `./Pinda.R $drawntree $phb`;    #Visually draw the tree.
         `rm $ph $phb`;
 
         alarm 0;
@@ -580,13 +555,17 @@ elsif ( $query->param('button') eq ' Click here to view the results. ' )
         <br><br>
         <table border='1'>
         <tr bgcolor=FFFF66><th><center>Possible duplications of <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point</a>.</center></th>
-        <th><center>P</center></th></tr>
+        <th><center>Confidence Value</center></th></tr>
 ENDHTML
         foreach $can (@candidate)
         {
-            if ($can !~ /$starting_point/ && $can =~ /(\d?.?\d+e?-?\d*) (\w+)/)
+            if (   $can !~ /$starting_point/
+                && $can =~ /(\d?.?\d+e?-?\d*) (\w+)/ )
             {
-                print "<tr><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td><td align=left>$1</td></tr>";
+                print
+"<tr><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td>";
+                printf( "<td align=left><center>%10.8f</center></td></tr>",
+                    $1 );
             }
         }
         print '</table>';
@@ -624,11 +603,13 @@ ENDHTML
             <tr bgcolor=FFFF66><th><center>Possible duplications of <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point</a>.</center></th>
             <th><center>P</center></th></tr>
 ENDHTML
+
             foreach $can (@candidate)
             {
-                if ($can !~ /$starting_point/ && $can =~ /(\d?.?\d+) (\w+)/)
+                if ( $can !~ /$starting_point/ && $can =~ /(\d?.?\d+) (\w+)/ )
                 {
-                    print "<tr><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td><td align=left>$1</td></tr>";
+                    print
+"<tr><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td><td align=left>$1</td></tr>";
                 }
             }
             print '</table>';
@@ -689,12 +670,12 @@ sub tree_manipulationI
     {
         print {$tree_fh} $yacounter;
     }
-    close $tree_fh;    
+    close $tree_fh;
 }
 
 sub tree_manipulationII
 {
-    @tree = ();
+    @tree      = ();
     $yacounter = 0;
     open $tree_fh, '<', $_[0];
     $/ = "\n";
@@ -714,7 +695,7 @@ sub tree_manipulationII
     {
         print {$tree_fh} $yacounter;
     }
-    close $tree_fh;    
+    close $tree_fh;
 }
 
 sub parser
@@ -729,7 +710,7 @@ sub parser
             $uni_ids[$unicounter] = $1;
             $unicounter++;
         }
-        elsif ( $line =~ /"(\w{6})"/ )
+        if ( $line =~ /"(\w{6})"/ )
         {
             if ( $1 !~ /_/ )
             {
@@ -739,7 +720,6 @@ sub parser
         }
         if ( $' =~ /"(\w{6})"/ && $1 !~ /_/ )
         {
-
             $uni_ids[$unicounter] = $1;
             $unicounter++;
         }
@@ -823,7 +803,7 @@ sub parser
                         }
                     }
                   EXIT0:
-                    if ($uni !~ /$starting_point/)
+                    if ( $uni !~ /$starting_point/ )
                     {
                         $candidate[$cancounter] = $ginomenon . ' ' . $uni;
                         $cancounter++;
@@ -854,7 +834,7 @@ sub parser
         @compare_seq = ();
     }
     close $tree_for_parsingfh;
-    @candidate = sort {$a <=> $b} @candidate;
-    @candidate = reverse @candidate;    
+    @candidate = sort { $a <=> $b } @candidate;
+    @candidate = reverse @candidate;
     return @candidate, $starting_point;
 }

@@ -21,6 +21,8 @@ use Sys::CPU;
 use Bio::TreeIO;
 use Bio::Tree::TreeI;
 use Bio::Tree::TreeFunctionsI;
+use FreezeThaw qw(freeze thaw);
+
 
 #use strict;
 #use warnings;
@@ -202,6 +204,10 @@ ENDHTML
 ENDHTML
                 exit;
             }
+            if( $string =~ /[|](\w{6})[|]/ )
+            {
+                    $Organisms{$organism} = $1;
+            }
         }
 
     }
@@ -285,6 +291,17 @@ ENDHTML
                         $organism[$list] =
                           $org;    # Populate the organism dropdown list.
                         $list++;
+                        if (! (defined $Organisms{$org}) )
+                        {
+                            if ( $hit->accession =~ /tr[|](\w+)[|]/ )
+                            {
+                                $Organisms{$org} = $hit->accession;
+                            }
+                            else
+                            {
+                                $Organisms{$org} = $hit->accession;
+                            }
+                        }
                     }
                 }
             }
@@ -292,6 +309,7 @@ ENDHTML
     }
     @organism2 = uniq(@organism);
     $mikos     = @organism2;
+    $Orghash = freeze %Organisms;
     alarm 0;
     print "-->\n";
     if ( defined $organism )
@@ -320,6 +338,7 @@ ENDHTML
     <input type=hidden name='prid' value='$prid'>
     <input type=hidden name='db' value='$db'>
     <input type=hidden name='email' value='$email'>
+    <input type=hidden name='Organisms' value='$Orghash'>
     </select></div><input type=submit name='dropdown' value='OK'>
     </form>
     </p>
@@ -342,7 +361,9 @@ elsif ($query->param('organism')
     my $prid     = $query->param('prid');
     my $db       = $query->param('db');
     my $email    = $query->param('email');
+    my %Organisms = thaw $query->param('Organisms');
 
+    $one = $Organisms{$organism};
     $tmp = '../tmps/blastp/' . $prid . '.tmp';
     $out = '../outs/psiblast/' . $prid . '.tmp';
     my $seqfblast = Bio::SeqIO->newFh( -file => $tmp, -format => 'fasta' );
@@ -442,11 +463,6 @@ elsif ($query->param('organism')
                             }
                             if ( $hit_old ne $acnumber )
                             {
-                                if ( $hsp->percent_identity > $pc_id )
-                                {
-                                    $one   = $acnumber;
-                                    $pc_id = $hsp->percent_identity;
-                                }
                                 $score[$number]  = $hit->score;
                                 $evalue[$number] = $hit->significance;
                                 $numero[$number] = $it->number;
@@ -550,7 +566,6 @@ elsif ($query->param('organism')
         -->
         <center><br><font size='3' face='Georgia' color='330033'>
         <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a href=../results/trees/zips/$prid.zip>NJ Tree Produced</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
         </font>
         <br><br>
         <table border='1'>
@@ -569,7 +584,11 @@ ENDHTML
             }
         }
         print '</table>';
-        print "<img src='../results/trees/drawn/$prid.png'>";
+        print <<"ENDHTML";
+        <img src='../results/trees/drawn/$prid.png'><br>
+        <a href=../results/trees/zips/$prid.zip>NJ Tree Produced</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ENDHTML
+
     }
     else
     {

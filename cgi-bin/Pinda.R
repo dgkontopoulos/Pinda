@@ -17,12 +17,12 @@ if (args[1] == "-parser") {
     print(treestructure)
 } else if (args[1] == "-lengths_1") {
     library(ade4, lib.loc = "../R/")
-    tree <- newick2phylog(scan(args[2], what = ""), add.tools = FALSE))
+    tree <- newick2phylog(scan(args[2], what = ""), add.tools = FALSE)
     treestructure <- tree[3]
     print(treestructure)
 } else if (args[1] == "-lengths_2") {
     library(ade4, lib.loc = "../R/")
-    tree <- newick2phylog(scan(args[2], what = ""), add.tools = FALSE))
+    tree <- newick2phylog(scan(args[2], what = ""), add.tools = FALSE)
     treestructure <- tree[2]
     print(treestructure)
 } else {

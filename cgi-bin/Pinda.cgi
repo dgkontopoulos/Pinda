@@ -49,6 +49,7 @@ my $pc_id            = 0;
 my $resnum           = 0;
 my $resnum2          = 0;
 my $sscounter        = 0;
+my $tdcounter        = 0;
 my $unicounter       = 0;
 my $yacounter        = 0;
 my (
@@ -583,9 +584,19 @@ ENDHTML
             if (   $can !~ /$starting_point/
                 && $can =~ /(\d?.?\d+e?-?\d*) (\w+)/ )
             {
+                if ($tdcounter == 1)
+                {
+                    $tdbg = 'F8FBFE';
+                    $tdcounter = 0;
+                }
+                else
+                {
+                    $tdbg = 'EAF1FB';
+                    $tdcounter++;
+                }
                 print
-"<tr><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td>";
-                printf( "<td align=left><center>%10.8f</center></td></tr>",
+"<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td>";
+                printf( "<td align=left><center>%15.13f</center></td></tr>",
                     $1 );
             }
         }
@@ -637,9 +648,19 @@ ENDHTML
             {
                 if ( $can !~ /$starting_point/ && $can =~ /(\d?.?\d+) (\w+)/ )
                 {
+                    if ($tdcounter == 1)
+                    {
+                        $tdbg = 'F8FBFE';
+                        $tdcounter = 0;
+                    }
+                    else
+                    {
+                        $tdbg = 'EAF1FB';
+                        $tdcounter++;
+                    }
                     print
-"<tr><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td>";
-                    printf( "<td align=left><center>%10.8f</center></td></tr>",
+"<tr><td bgcolor=$tdbg><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td>";
+                    printf( "<td align=left><center>%15.13f</center></td></tr>",
                         $1 );
                 }
             }
@@ -761,10 +782,10 @@ sub parser
     {
         if ( $line =~ /$starting_point/ )
         {
-            if ( $line =~ /parts\$X(\w+)/ )
+            if ( $line =~ /parts\$(\w)(\w+)/ )
             {
-                $star_seq[$sscounter] = $1;
-                $search_id = $star_seq[$sscounter];
+                $star_seq[$sscounter] = $2;
+                $search_id = $1 . $star_seq[$sscounter];
                 $sscounter++;
             }
             foreach $line (@parsing_lines)
@@ -772,10 +793,10 @@ sub parser
               LOOP0:
                 if ( $line =~ /$search_id"/ )
                 {
-                    if ( $line =~ /parts\$X(\w+)/ )
+                    if ( $line =~ /parts\$(\w)(\w+)/ )
                     {
-                        $star_seq[$sscounter] = $1;
-                        $search_id = $star_seq[$sscounter];
+                        $star_seq[$sscounter] = $2;
+                        $search_id = $1 . $star_seq[$sscounter];
                         $sscounter++;
                         goto LOOP0;
                     }
@@ -790,10 +811,10 @@ sub parser
         {
             if ( $line =~ /$uni/ )
             {
-                if ( $line =~ /parts\$X(\w+)/ )
+                if ( $line =~ /parts\$(\w)(\w+)/ )
                 {
-                    $compare_seq[$sscounter] = $1;
-                    $search_id = $compare_seq[$sscounter];
+                    $compare_seq[$sscounter] = $2;
+                    $search_id = $1 . $compare_seq[$sscounter];
                     $sscounter++;
                 }
                 foreach $line (@parsing_lines)
@@ -801,10 +822,10 @@ sub parser
                   LOOP:
                     if ( $line =~ /$search_id"/ )
                     {
-                        if ( $line =~ /parts\$X(\w+)/ )
+                        if ( $line =~ /parts\$(\w)(\w+)/ )
                         {
-                            $compare_seq[$sscounter] = $1;
-                            $search_id = 'X' . $compare_seq[$sscounter];
+                            $compare_seq[$sscounter] = $2;
+                            $search_id = $1 . $compare_seq[$sscounter];
                             $sscounter++;
                             goto LOOP;
                         }

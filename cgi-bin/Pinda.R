@@ -12,17 +12,17 @@ args <- commandArgs(TRUE)
 #install.packages(c('ape','ade4') lib='../R')
 if (args[1] == "-parser") {
     library(ade4, lib.loc = "../R/")  #load ADE4 package
-    tree <- newick2phylog(scan(args[2], what = ""))
+    tree <- newick2phylog(scan(args[2], what = ""), add.tools = FALSE)
     treestructure <- tree[4]
     print(treestructure)
 } else if (args[1] == "-lengths_1") {
     library(ade4, lib.loc = "../R/")
-    tree <- newick2phylog(scan(args[2], what = ""))
+    tree <- newick2phylog(scan(args[2], what = ""), add.tools = FALSE))
     treestructure <- tree[3]
     print(treestructure)
 } else if (args[1] == "-lengths_2") {
     library(ade4, lib.loc = "../R/")
-    tree <- newick2phylog(scan(args[2], what = ""))
+    tree <- newick2phylog(scan(args[2], what = ""), add.tools = FALSE))
     treestructure <- tree[2]
     print(treestructure)
 } else {

@@ -23,7 +23,6 @@ use Bio::Tree::TreeI;
 use Bio::Tree::TreeFunctionsI;
 use FreezeThaw qw(freeze thaw);
 
-
 #use strict;
 #use warnings;
 
@@ -174,7 +173,14 @@ ENDHTML
     }
     else
     {
-        if ( $string !~ /^>/ )
+        if ( $string =~ /(>)/ )
+        {
+            if ( $' =~ /(>)/ )
+            {
+                $string = '>' . $`;
+            }
+        }
+        elsif ( $string !~ /^>/ )
         {
             $string = ">\n" . $string;
         }
@@ -204,9 +210,9 @@ ENDHTML
 ENDHTML
                 exit;
             }
-            if( $string =~ /[|](\w{6})[|]/ )
+            if ( $string =~ /[|](\w{6})[|]/ )
             {
-                    $Organisms{$organism} = $1;
+                $Organisms{$organism} = $1;
             }
         }
 
@@ -291,7 +297,7 @@ ENDHTML
                         $organism[$list] =
                           $org;    # Populate the organism dropdown list.
                         $list++;
-                        if (! (defined $Organisms{$org}) )
+                        if ( !( defined $Organisms{$org} ) )
                         {
                             if ( $hit->accession =~ /tr[|](\w+)[|]/ )
                             {
@@ -309,7 +315,7 @@ ENDHTML
     }
     @organism2 = uniq(@organism);
     $mikos     = @organism2;
-    $Orghash = freeze %Organisms;
+    $Orghash   = freeze %Organisms;
     alarm 0;
     print "-->\n";
     if ( defined $organism )
@@ -357,10 +363,10 @@ elsif ($query->param('organism')
     && $query->param('db')
     && $query->param('email') )
 {
-    my $organism = $query->param('organism');
-    my $prid     = $query->param('prid');
-    my $db       = $query->param('db');
-    my $email    = $query->param('email');
+    my $organism  = $query->param('organism');
+    my $prid      = $query->param('prid');
+    my $db        = $query->param('db');
+    my $email     = $query->param('email');
     my %Organisms = thaw $query->param('Organisms');
 
     $one = $Organisms{$organism};
@@ -607,10 +613,14 @@ ENDHTML
             `clustalw -INFILE=$fnaln -OUTFILE=$ph -tree`;
 `mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
             `rm *.dnd`;
-            tree_manipulation($ph);
-            `./Pinda.R $drawntree $ph > /web/parsing/$prid.tmp`;
+            tree_manipulationI($ph);
+            `./Pinda.R -parser $ph > /web/parsing/$prid.tmp`;
+            tree_manipulationII($ph);
+
             `zip -j $zip $ph`;
+            `./Pinda.R $drawntree $ph`;    #Visually draw the tree.
             `rm $ph`;
+
             parser("../parsing/$prid.tmp");
             print <<"ENDHTML";
             <center><br><font size='3' face='Georgia' color='330033'>
@@ -620,7 +630,7 @@ ENDHTML
             <br><br>
             <table border='1'>
             <tr bgcolor=FFFF66><th><center>Possible duplications of <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point</a>.</center></th>
-            <th><center>P</center></th></tr>
+            <th><center>Confidence Value</center></th></tr>
 ENDHTML
 
             foreach $can (@candidate)
@@ -628,7 +638,9 @@ ENDHTML
                 if ( $can !~ /$starting_point/ && $can =~ /(\d?.?\d+) (\w+)/ )
                 {
                     print
-"<tr><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td><td align=left>$1</td></tr>";
+"<tr><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td>";
+                    printf( "<td align=left><center>%10.8f</center></td></tr>",
+                        $1 );
                 }
             }
             print '</table>';

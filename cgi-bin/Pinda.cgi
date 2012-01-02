@@ -27,7 +27,7 @@ use FreezeThaw qw(freeze thaw);
 #use warnings;
 
 my $Swissprot        = '../databases/Swissprot/uniprot_sprot.fasta';
-my $UniProt          = '../databases/TrEMBL/uniprot.fasta';
+my $UniProt          = '../databases/UniProt/UniProt.fasta';
 my $alncounter       = 0;
 my $bscounter        = 1;
 my $cancounter       = 0;
@@ -36,11 +36,12 @@ my $ginomenon        = 1;
 my $hit_old          = 0;
 my $it_counting      = 0;
 my $linocounter      = 0;
+my $list             = 0;
 my $sequences_number = 0;
 my $iteration_number = 0;
 my $it_exit          = 0;
 my $jac              = 0;
-my $list             = 0;
+my $list2            = 0;
 my $p                = 0;
 my $p2               = 0;
 my $pathcounter      = 0;
@@ -213,7 +214,11 @@ ENDHTML
             }
             if ( $string =~ /[|](\w{6})[|]/ )
             {
-                $Organisms{$organism} = $1;
+                $hit_check = $1;
+                if ( $hit_check =~ /\d/ && $hit_check =~ /\D/ )
+                {
+                    $input_hit = $hit_check;
+                }
             }
         }
 
@@ -298,11 +303,23 @@ ENDHTML
                         $organism[$list] =
                           $org;    # Populate the organism dropdown list.
                         $list++;
+                        if ( $org eq $organism && defined $input_hit )
+                        {
+                            if ( $hit->accession =~ /tr[|](\w+)[|]/ )
+                            {
+                                $input_org[$list2] = $1;
+                            }
+                            else
+                            {
+                                $input_org[$list2] = $hit->accession;
+                            }
+                            $list2++;
+                        }
                         if ( !( defined $Organisms{$org} ) )
                         {
                             if ( $hit->accession =~ /tr[|](\w+)[|]/ )
                             {
-                                $Organisms{$org} = $hit->accession;
+                                $Organisms{$org} = $1;
                             }
                             else
                             {
@@ -311,6 +328,16 @@ ENDHTML
                         }
                     }
                 }
+            }
+        }
+    }
+    if ( defined $input_hit )
+    {
+        foreach $hit (@input_org)
+        {
+            if ( $hit eq $input_hit )
+            {
+                $Organisms{$organism} = $input_hit;
             }
         }
     }
@@ -364,6 +391,8 @@ elsif ($query->param('organism')
     && $query->param('db')
     && $query->param('email') )
 {
+    my $start_timer = time();
+
     my $organism  = $query->param('organism');
     my $prid      = $query->param('prid');
     my $db        = $query->param('db');
@@ -572,7 +601,7 @@ elsif ($query->param('organism')
         print <<"ENDHTML";
         -->
         <center><br><font size='3' face='Georgia' color='330033'>
-        <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a>
         </font>
         <br><br>
         <table border='1'>
@@ -584,9 +613,9 @@ ENDHTML
             if (   $can !~ /$starting_point/
                 && $can =~ /(\d?.?\d+e?-?\d*) (\w+)/ )
             {
-                if ($tdcounter == 1)
+                if ( $tdcounter == 1 )
                 {
-                    $tdbg = 'F8FBFE';
+                    $tdbg      = 'F8FBFE';
                     $tdcounter = 0;
                 }
                 else
@@ -603,7 +632,7 @@ ENDHTML
         print '</table>';
         print <<"ENDHTML";
         <img src='../results/trees/drawn/$prid.png'><br>
-        <a href=../results/trees/zips/$prid.zip>NJ Tree Produced</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <a href=../results/trees/zips/$prid.zip>NJ Tree Produced</a>
 ENDHTML
 
     }
@@ -648,9 +677,9 @@ ENDHTML
             {
                 if ( $can !~ /$starting_point/ && $can =~ /(\d?.?\d+) (\w+)/ )
                 {
-                    if ($tdcounter == 1)
+                    if ( $tdcounter == 1 )
                     {
-                        $tdbg = 'F8FBFE';
+                        $tdbg      = 'F8FBFE';
                         $tdcounter = 0;
                     }
                     else
@@ -667,29 +696,39 @@ ENDHTML
             print '</table>';
             print "<img src='../results/trees/drawn/$prid.png'>";
         }
-        if ( $sequences_number < 3 )
+        if ( $sequences_number == '2' )
         {
             alarm 0;
             print <<"ENDHTML";
             -->
+            <center>
             <font size='3' face='Georgia' color='330033'><br><br>
-            The number of sequences for this particular organism is less than three.<br><b>
-            A dendrogram cannot be plotted.</b></font>
+            The number of sequences for this particular organism is less than three.<br>
+            <b>A dendrogram cannot be plotted.</b></font>
+            </center>
 ENDHTML
-            if ( $sequences_number > 1 )
-            {
-                tcoffee( $sequences, $fnaln, $email );
-                alarm 0;
-                print <<"ENDHTML";
-                -->
+            tcoffee( $sequences, $fnaln, $email );
+            print <<"ENDHTML";
                 <br><font size='3' face='Georgia' color='330033'><br>
                 <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a></font>
 ENDHTML
-            }
+        }
+        if ( $sequences_number == '1' )
+        {
+            alarm 0;
+            print <<"ENDHTML";
+            -->
+            <center>
+            <br><font size='3' face='Georgia' color='330033'><br><br>
+            No possible duplications have been detected.</font>
+            </center>
+ENDHTML
         }
     }
+    my $end_timer = time();
+    my $run_time  = $end_timer - $start_timer;
+    job_timer($run_time);
     print "</center>\n</body>\n</html>";
-
 }
 
 sub tcoffee    #Pretty self-explanatory.
@@ -889,4 +928,142 @@ sub parser
     @candidate = sort { $a <=> $b } @candidate;
     @candidate = reverse @candidate;
     return @candidate, $starting_point;
+}
+
+sub job_timer
+{
+    if ( $_[0] > 3600 )
+    {
+        $hours = $_[0] / 3600;
+        $_[0] %= 3600;
+
+    }
+    if ( $_[0] > 60 )
+    {
+        $minutes = $_[0] / 60;
+        $_[0] %= 60;
+    }
+    if ( $_[0] > 0 )
+    {
+        $seconds = $_[0];
+    }
+    print "<br><br><font size='2' face='Courier New'><center>This job took ";
+    if ( defined $hours && defined $minutes && defined $seconds )
+    {
+        if ( $hours > 1 )
+        {
+            printf( "<b>%.0f hours</b>,", $hours );
+        }
+        else
+        {
+            printf("<b>1 hour</b>,");
+        }
+        if ( $minutes > 1 )
+        {
+            printf( " <b>%.0f minutes</b>", $minutes );
+        }
+        else
+        {
+            printf(" <b>1 minute</b>");
+        }
+        if ( $seconds > 1 )
+        {
+            printf( " and <b>%.0f seconds</b>.", $seconds );
+        }
+        else
+        {
+            printf(" and <b>1 second</b>.");
+        }
+    }
+    elsif ( defined $hours && defined $minutes )
+    {
+        if ( $hours > 1 )
+        {
+            printf( "<b>%.0f hours</b>", $hours );
+        }
+        else
+        {
+            printf("<b>1 hour</b>");
+        }
+        if ( $minutes > 1 )
+        {
+            printf( " and <b>%.0f minutes</b>.", $minutes );
+        }
+        else
+        {
+            printf(" and <b>1 minute</b>.");
+        }
+    }
+    elsif ( defined $hours && defined $seconds )
+    {
+        if ( $hours > 1 )
+        {
+            printf( "<b>%.0f hours</b>", $hours );
+        }
+        else
+        {
+            printf("<b>1 hour</b>");
+        }
+        if ( $seconds > 1 )
+        {
+            printf( " and <b>%.0f seconds</b>.", $seconds );
+        }
+        else
+        {
+            printf(" and <b>1 second</b>.");
+        }
+    }
+    elsif ( defined $minutes && defined $seconds )
+    {
+        if ( $minutes > 1 )
+        {
+            printf( "<b>%.0f minutes</b>", $minutes );
+        }
+        else
+        {
+            printf("<b>1 minute</b>");
+        }
+        if ( $seconds > 1 )
+        {
+            printf( " and <b>%.0f seconds</b>.", $seconds );
+        }
+        else
+        {
+            printf(" and <b>1 second</b>.");
+        }
+    }
+    elsif ( defined $hours )
+    {
+        if ( $hours > 1 )
+        {
+            printf( "<b>%.0f hours</b>.", $hours );
+        }
+        else
+        {
+            printf("<b>1 hour</b>.");
+        }
+    }
+    elsif ( defined $minutes )
+    {
+        if ( $minutes > 1 )
+        {
+            printf( "<b>%.0f minutes</b>.", $minutes );
+        }
+        else
+        {
+            printf("<b>1 minute</b>.");
+        }
+    }
+    elsif ( defined $seconds )
+    {
+        if ( $seconds > 1 )
+        {
+            printf( "<b>%.0f seconds</b>.", $seconds );
+        }
+        else
+        {
+            printf("<b>1 second</b>.");
+        }
+    }
+    print "</font></center>";
 }

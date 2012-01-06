@@ -5,23 +5,24 @@
 ###################
 
 use autodie;
+use Bio::AlignIO;
 use Bio::Perl;
+use Bio::Root::IO;
+use Bio::SearchIO;
+use Bio::Search::Iteration::GenericIteration;
+use Bio::Search::Result::BlastResult;
+use Bio::SeqIO;
 use Bio::Tools::Run::StandAloneBlastPlus;
 use Bio::Tools::Run::StandAloneBlastPlus::BlastMethods;
-use Bio::SeqIO;
-use Bio::SearchIO;
-use Bio::Search::Result::BlastResult;
-use Bio::Root::IO;
-use Bio::Search::Iteration::GenericIteration;
-use Bio::AlignIO;
+use Bio::TreeIO;
+use Bio::Tree::TreeFunctionsI;
+use Bio::Tree::TreeI;
 use CGI qw(:standard);
 use Data::Validate::Email qw(is_email);
-use List::MoreUtils qw(uniq);
-use Sys::CPU;
-use Bio::TreeIO;
-use Bio::Tree::TreeI;
-use Bio::Tree::TreeFunctionsI;
 use FreezeThaw qw(freeze thaw);
+use List::MoreUtils qw(uniq);
+use MIME::Lite;
+use Sys::CPU;
 
 #use strict;
 #use warnings;
@@ -107,6 +108,11 @@ print <<"ENDHTML";
 </p>
 </center>
 ENDHTML
+
+$email_data = "<center>
+<br>
+<a href='http://localhost/cgi-bin/Pinda.cgi'><img src='http://localhost/pindalogo.png'></a>
+<br>";
 
 if ( !$query->param )    #Homepage
 {
@@ -574,13 +580,13 @@ elsif ($query->param('organism')
     print "<!--\n";
     $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
     alarm $timeout;
-
-    $email =~ s/([\@])/\\$1/;
+    $email2 = $email;
+    $email2 =~ s/([\@])/\\$1/;
     if ( $sequences_number > 3 )
     {
 
         #Alignment, NJ tree plotting and bootstrapping.#
-        tcoffee( $sequences, $fnaln, $email );
+        tcoffee( $sequences, $fnaln, $email2 );
         `clustalw -INFILE=$fnaln -OUTFILE=$ph -tree`;
 `clustalw -INFILE=$fnaln -OUTFILE=$phb -bootstrap=1000 -bootlabels=node`;
         `rm *.dnd`;
@@ -608,6 +614,16 @@ elsif ($query->param('organism')
         <tr bgcolor=FFFF66><th><center>Possible duplications of <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point</a>.</center></th>
         <th><center>Confidence Value</center></th></tr>
 ENDHTML
+
+        $email_data = $email_data
+          . "<center><br><font size='3' face='Georgia' color='330033'>
+        <a href=http://localhost/results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a>
+        </font>
+        <br><br>
+        <table border='1'>
+        <tr bgcolor=FFFF66><th><center>Possible duplications of <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point</a>.</center></th>
+        <th><center>Confidence Value</center></th></tr>";
+
         foreach $can (@candidate)
         {
             if (   $can !~ /$starting_point/
@@ -627,6 +643,12 @@ ENDHTML
 "<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td>";
                 printf( "<td align=left><center>%15.13f</center></td></tr>",
                     $1 );
+                $email_data =
+                    $email_data
+                  . "<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td>"
+                  . sprintf(
+                    "<td align=left><center>%15.13f</center></td></tr>",
+                    $1 );
             }
         }
         print '</table>';
@@ -634,6 +656,9 @@ ENDHTML
         <img src='../results/trees/drawn/$prid.png'><br>
         <a href=../results/trees/zips/$prid.zip>NJ Tree Produced</a>
 ENDHTML
+        $email_data = $email_data
+          . "</table><img src='http://localhost/results/trees/drawn/$prid.png'><br>
+        <a href=http://localhost/results/trees/zips/$prid.zip>NJ Tree Produced</a>";
 
     }
     else
@@ -649,7 +674,7 @@ ENDHTML
             <br><b>The dendrogram cannot be bootstrapped.</b></font>
             </center>
 ENDHTML
-            tcoffee( $sequences, $fnaln, $email );
+            tcoffee( $sequences, $fnaln, $email2 );
             `clustalw -INFILE=$fnaln -OUTFILE=$ph -tree`;
 `mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
             `rm *.dnd`;
@@ -728,6 +753,7 @@ ENDHTML
     my $end_timer = time();
     my $run_time  = $end_timer - $start_timer;
     job_timer($run_time);
+    send_email($email);
     print "</center>\n</body>\n</html>";
 }
 
@@ -950,7 +976,7 @@ sub job_timer
     print "<br><br><font size='2' face='Courier New'><center>This job took ";
     if ( defined $hours && defined $minutes && defined $seconds )
     {
-        if ( $hours > 1 )
+        if ( $hours >= 2 )
         {
             printf( "<b>%.0f hours</b>,", $hours );
         }
@@ -958,7 +984,7 @@ sub job_timer
         {
             printf("<b>1 hour</b>,");
         }
-        if ( $minutes > 1 )
+        if ( $minutes >= 2 )
         {
             printf( " <b>%.0f minutes</b>", $minutes );
         }
@@ -966,7 +992,7 @@ sub job_timer
         {
             printf(" <b>1 minute</b>");
         }
-        if ( $seconds > 1 )
+        if ( $seconds >= 2 )
         {
             printf( " and <b>%.0f seconds</b>.", $seconds );
         }
@@ -977,7 +1003,7 @@ sub job_timer
     }
     elsif ( defined $hours && defined $minutes )
     {
-        if ( $hours > 1 )
+        if ( $hours >= 2 )
         {
             printf( "<b>%.0f hours</b>", $hours );
         }
@@ -985,7 +1011,7 @@ sub job_timer
         {
             printf("<b>1 hour</b>");
         }
-        if ( $minutes > 1 )
+        if ( $minutes >= 2 )
         {
             printf( " and <b>%.0f minutes</b>.", $minutes );
         }
@@ -996,7 +1022,7 @@ sub job_timer
     }
     elsif ( defined $hours && defined $seconds )
     {
-        if ( $hours > 1 )
+        if ( $hours >= 2 )
         {
             printf( "<b>%.0f hours</b>", $hours );
         }
@@ -1004,7 +1030,7 @@ sub job_timer
         {
             printf("<b>1 hour</b>");
         }
-        if ( $seconds > 1 )
+        if ( $seconds >= 2 )
         {
             printf( " and <b>%.0f seconds</b>.", $seconds );
         }
@@ -1015,7 +1041,7 @@ sub job_timer
     }
     elsif ( defined $minutes && defined $seconds )
     {
-        if ( $minutes > 1 )
+        if ( $minutes >= 2 )
         {
             printf( "<b>%.0f minutes</b>", $minutes );
         }
@@ -1023,7 +1049,7 @@ sub job_timer
         {
             printf("<b>1 minute</b>");
         }
-        if ( $seconds > 1 )
+        if ( $seconds >= 2 )
         {
             printf( " and <b>%.0f seconds</b>.", $seconds );
         }
@@ -1034,7 +1060,7 @@ sub job_timer
     }
     elsif ( defined $hours )
     {
-        if ( $hours > 1 )
+        if ( $hours >= 2 )
         {
             printf( "<b>%.0f hours</b>.", $hours );
         }
@@ -1045,7 +1071,7 @@ sub job_timer
     }
     elsif ( defined $minutes )
     {
-        if ( $minutes > 1 )
+        if ( $minutes >= 2 )
         {
             printf( "<b>%.0f minutes</b>.", $minutes );
         }
@@ -1056,7 +1082,7 @@ sub job_timer
     }
     elsif ( defined $seconds )
     {
-        if ( $seconds > 1 )
+        if ( $seconds >= 2 )
         {
             printf( "<b>%.0f seconds</b>.", $seconds );
         }
@@ -1066,4 +1092,16 @@ sub job_timer
         }
     }
     print "</font></center>";
+}
+
+sub send_email
+{
+    my $msg = MIME::Lite->new(
+        Subject => 'Pinda Job Result',
+        From    => 'pinda@mbg.duth.gr',
+        To      => $_[0],
+        Type    => 'text/html',
+        Data    => $email_data
+    );
+    $msg->send();
 }

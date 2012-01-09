@@ -36,20 +36,25 @@ my $gcounter         = 0;
 my $ginomenon        = 1;
 my $hit_old          = 0;
 my $it_counting      = 0;
+my $it_exit          = 0;
+my $iteration_number = 0;
+my $jac              = 0;
 my $linocounter      = 0;
 my $list             = 0;
-my $sequences_number = 0;
-my $iteration_number = 0;
-my $it_exit          = 0;
-my $jac              = 0;
 my $list2            = 0;
+my $node_distance    = 0;
 my $p                = 0;
 my $p2               = 0;
-my $pathcounter      = 0;
 my $parse_counter    = 0;
+my $pathcounter      = 0;
 my $pc_id            = 0;
+my $plc              = 0;
+my $plc2             = 0;
+my $plcn             = 0;
+my $plcn2            = 0;
 my $resnum           = 0;
 my $resnum2          = 0;
+my $sequences_number = 0;
 my $sscounter        = 0;
 my $tdcounter        = 0;
 my $unicounter       = 0;
@@ -60,15 +65,15 @@ my (
     $ge_url,         $gene,       $genepo,    $hit,
     $i,              $line,       $line2,     $match_line,
     $matchreg,       $mikos,      $needed,    $nod,
-    $number_of_cpus, $one,        $original,  $org,
-    $org1,           $organism,   $out,       $out_fh,
+    $number_of_cpus, $one,        $org,       $org1,
+    $organism,       $original,   $out,       $out_fh,
     $ph,             $phb,        $pos,       $prid,
     $results,        $results_fh, $sequence,  $sequences,
     $sequences_fh,   $tmp,        $tmp_fh,    $tree_fh,
-    @accession,      @alignments, @nodes,     @nodes2,
-    @numero,         @organism,   @organism2, @possible,
-    @possible2,      @reslines,   @score,     @seq,
-    @seq2,           @evalue,     @tree
+    @accession,      @alignments, @evalue,    @nodes,
+    @nodes2,         @numero,     @organism,  @organism2,
+    @possible,       @possible2,  @reslines,  @score,
+    @seq,            @seq2,       @tree
 );
 
 open STDERR, '>', '/dev/null';
@@ -603,7 +608,8 @@ elsif ($query->param('organism')
 
         alarm 0;
 
-        parser("../parsing/$prid.tmp");
+        parser( "../parsing/$prid.tmp", "../parsing/$prid\_1.tmp",
+            "../parsing/$prid\_2.tmp" );
         print <<"ENDHTML";
         -->
         <center><br><font size='3' face='Georgia' color='330033'>
@@ -753,7 +759,8 @@ ENDHTML
     my $end_timer = time();
     my $run_time  = $end_timer - $start_timer;
     job_timer($run_time);
-    send_email($email);
+
+    #   send_email($email);
     print "</center>\n</body>\n</html>";
 }
 
@@ -843,14 +850,91 @@ sub parser
         $parsing_lines[$linocounter] = $line;
         $linocounter++;
     }
+    close $tree_for_parsingfh;
+
+    open $tree_node_distancesfh, '<', $_[1];
+    $/ = "\n";
+    while ( $neoline = <$tree_node_distancesfh> )
+    {
+        if ( $neoline !~ /\$/ && $neoline =~ /\w/ )
+        {
+          CONTINUE_PARSING:
+            if ( $neoline !~ /\./ )
+            {
+                if ( $neoline =~ /\s?(\w+)/ || $neoline =~ /(Root)/ )
+                {
+                    $parsed_lines[$plc][$plc2] = $1;
+                    $plc2++;
+                    $continue = $';
+                    if ( $continue =~ /\w/ )
+                    {
+                        $neoline = $continue;
+                        goto CONTINUE_PARSING;
+                    }
+                    $plc++;
+                }
+            }
+            elsif ( $neoline =~ /(\d+\.\d+)/ )
+            {
+                $DistancesHash{ $parsed_lines[ $plc - 1 ][$plc2] } = $1;
+                $plc2++;
+                $continue = $';
+                if ( $continue =~ /\w/ )
+                {
+                    $neoline = $continue;
+                    goto CONTINUE_PARSING;
+                }
+            }
+            $plc2 = 0;
+        }
+    }
+    close $tree_node_distancesfh;
+    open $tree_tip_distancesfh, '<', $_[2];
+    $/ = "\n";
+    while ( $neoline2 = <$tree_tip_distancesfh> )
+    {
+        if ( $neoline2 !~ /\$/ && $neoline2 =~ /\w/ )
+        {
+          KEEP_ON_PARSING:
+            if ( $neoline2 !~ /\./ )
+            {
+                if ( $neoline2 =~ /\_?\_?\_?(\w{6})\_?\_?\_?\s/ )
+                {
+                    $parsed_linesnew[$plcn][$plcn2] = $1;
+                    $plcn2++;
+                    $continue = $';
+                    if ( $continue =~ /\w/ )
+                    {
+                        $neoline2 = $continue;
+                        goto KEEP_ON_PARSING;
+                    }
+                    $plcn++;
+                }
+            }
+            elsif ( $neoline2 =~ /(\d+\.\d+)/ )
+            {
+                $DistancesHash2{ $parsed_linesnew[ $plcn - 1 ][$plcn2] } = $1;
+                $plcn2++;
+                $continue = $';
+                if ( $continue =~ /\w/ )
+                {
+                    $neoline2 = $continue;
+                    goto KEEP_ON_PARSING;
+                }
+            }
+            $plcn2 = 0;
+        }
+    }
+    close $tree_tip_distancesfh;
+
     foreach $line (@parsing_lines)
     {
         if ( $line =~ /$starting_point/ )
         {
             if ( $line =~ /parts\$(\w)(\w+)/ )
             {
-                $star_seq[$sscounter] = $2;
-                $search_id = $1 . $star_seq[$sscounter];
+                $star_seq[$sscounter] = $1 . $2;
+                $search_id = $1 . $2;
                 $sscounter++;
             }
             foreach $line (@parsing_lines)
@@ -860,8 +944,8 @@ sub parser
                 {
                     if ( $line =~ /parts\$(\w)(\w+)/ )
                     {
-                        $star_seq[$sscounter] = $2;
-                        $search_id = $1 . $star_seq[$sscounter];
+                        $star_seq[$sscounter] = $1 . $2;
+                        $search_id = $1 . $2;
                         $sscounter++;
                         goto LOOP0;
                     }
@@ -878,8 +962,8 @@ sub parser
             {
                 if ( $line =~ /parts\$(\w)(\w+)/ )
                 {
-                    $compare_seq[$sscounter] = $2;
-                    $search_id = $1 . $compare_seq[$sscounter];
+                    $compare_seq[$sscounter] = $1 . $2;
+                    $search_id = $1 . $2;
                     $sscounter++;
                 }
                 foreach $line (@parsing_lines)
@@ -889,8 +973,8 @@ sub parser
                     {
                         if ( $line =~ /parts\$(\w)(\w+)/ )
                         {
-                            $compare_seq[$sscounter] = $2;
-                            $search_id = $1 . $compare_seq[$sscounter];
+                            $compare_seq[$sscounter] = $1 . $2;
+                            $search_id = $1 . $2;
                             $sscounter++;
                             goto LOOP;
                         }
@@ -902,6 +986,7 @@ sub parser
         {
             if ( $node =~ /(\d+)\_?/ )
             {
+                $node_distance += $DistancesHash{"$node"};
                 $ginomenon *= $1 / 1000.0;
             }
             foreach $star_node (@star_seq)
@@ -912,28 +997,37 @@ sub parser
                     {
                         if ( $star_node ne $node && $star_node =~ /(\d+)\_?/ )
                         {
+                            $node_distance += $DistancesHash{"$star_node"};
                             $ginomenon *= $1 / 1000.0;
                         }
                         if ( $star_node eq $node )
                         {
+                            $node_distance -= $DistancesHash{"$star_node"};
                             goto EXIT0;
                         }
                     }
                   EXIT0:
                     if ( $uni !~ /$starting_point/ )
                     {
-                        $candidate[$cancounter] = $ginomenon . ' ' . $uni;
+                        $node_distance +=
+                          $DistancesHash2{"$uni"} +
+                          $DistancesHash2{"$starting_point"};
+                        $degree_of_confidence = $ginomenon / $node_distance;
+                        $candidate[$cancounter] =
+                          $degree_of_confidence . ' ' . $uni;
                         $cancounter++;
                     }
                     goto EXIT;
                 }
             }
         }
-        $ginomenon = 1;
+        $node_distance = 0;
+        $ginomenon     = 1;
         foreach $node (@compare_seq)
         {
             if ( $node =~ /(\d+)\_?/ )
             {
+                $node_distance += $DistancesHash{"$node"};
                 $ginomenon *= $1 / 1000.0;
             }
         }
@@ -941,16 +1035,20 @@ sub parser
         {
             if ( $star_node =~ /(\d+)\_?/ )
             {
+                $node_distance += $DistancesHash{"$star_node"};
                 $ginomenon *= $1 / 1000.0;
             }
         }
-        $candidate[$cancounter] = $ginomenon . ' ' . $uni;
+        $node_distance +=
+          $DistancesHash2{"$uni"} + $DistancesHash2{"$starting_point"};
+        $degree_of_confidence = $ginomenon / $node_distance;
+        $candidate[$cancounter] = $degree_of_confidence . ' ' . $uni;
         $cancounter++;
       EXIT:
-        $ginomenon   = 1;
-        @compare_seq = ();
+        $node_distance = 0;
+        $ginomenon     = 1;
+        @compare_seq   = ();
     }
-    close $tree_for_parsingfh;
     @candidate = sort { $a <=> $b } @candidate;
     @candidate = reverse @candidate;
     return @candidate, $starting_point;

@@ -7,7 +7,7 @@
 ######################################
 args <- commandArgs(TRUE)
 #r <- getOption('repos')
-#r['CRAN'] <- 'http://cran.stat.ucla.edu'
+#r['CRAN'] <- 'http://cran.cc.uoc.gr/'
 #options(repos=r)
 #install.packages(c('ape','ade4') lib='../R')
 if (args[1] == "-parser") {

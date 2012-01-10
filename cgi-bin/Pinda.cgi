@@ -24,11 +24,11 @@ use List::MoreUtils qw(uniq);
 use MIME::Lite;
 use Sys::CPU;
 
-#use strict;
-#use warnings;
+use strict;
+use warnings;
 
-my $Swissprot        = '../databases/Swissprot/uniprot_sprot.fasta';
-my $UniProt          = '../databases/UniProt/UniProt.fasta';
+my $SWISSPROT        = '../databases/Swissprot/uniprot_sprot.fasta';
+my $UNIPROT          = '../databases/UniProt/UniProt.fasta';
 my $alncounter       = 0;
 my $bscounter        = 1;
 my $cancounter       = 0;
@@ -60,20 +60,30 @@ my $tdcounter        = 0;
 my $unicounter       = 0;
 my $yacounter        = 0;
 my (
-    $acnumber,       $alignment,  $alns,      $alns_fh,
-    $bvdiv,          $des,        $drawntree, $fnaln,
-    $ge_url,         $gene,       $genepo,    $hit,
-    $i,              $line,       $line2,     $match_line,
-    $matchreg,       $mikos,      $needed,    $nod,
-    $number_of_cpus, $one,        $org,       $org1,
-    $organism,       $original,   $out,       $out_fh,
-    $ph,             $phb,        $pos,       $prid,
-    $results,        $results_fh, $sequence,  $sequences,
-    $sequences_fh,   $tmp,        $tmp_fh,    $tree_fh,
-    @accession,      @alignments, @evalue,    @nodes,
-    @nodes2,         @numero,     @organism,  @organism2,
-    @possible,       @possible2,  @reslines,  @score,
-    @seq,            @seq2,       @tree
+    $acnumber,             $alignment,             $alns,
+    $alns_fh,              $bvdiv,                 $continue,
+    $degree_of_confidence, $des,                   $drawntree,
+    $email2,               $email_data,            $fnaln,
+    $hit,                  $hit_check,             $hours,
+    $i,                    $input_hit,             $line,
+    $match_line,           $mikos,                 $minutes,
+    $neoline,              $neoline2,              $number_of_cpus,
+    $one,                  $org,                   $org1,
+    $organism,             $orghash,               $out,
+    $out_fh,               $ph,                    $prid,
+    $results,              $results_fh,            $search_id,
+    $seconds,              $sequence,              $sequences,
+    $sequences_fh,         $starting_point,        $tdbg,
+    $tmp,                  $tmp_fh,                $tree_fh,
+    $tree_for_parsingfh,   $tree_node_distancesfh, $tree_tip_distancesfh,
+    @accession,            @alignments,            @candidate,
+    @compare_seq,          @evalue,                @input_org,
+    @numero,               @organism,              @organism2,
+    @parsed_lines,         @parsed_linesnew,       @parsing_lines,
+    @reslines,             @score,                 @seq,
+    @seq2,                 @star_seq,              @tree,
+    @uni_ids,              %distanceshash,         %distanceshash2,
+    %organisms
 );
 
 open STDERR, '>', '/dev/null';
@@ -114,10 +124,11 @@ print <<"ENDHTML";
 </center>
 ENDHTML
 
-$email_data = "<center>
-<br>
+$email_data = <<'EMAIL_END';
+<center><br>
 <a href='http://localhost/cgi-bin/Pinda.cgi'><img src='http://localhost/pindalogo.png'></a>
-<br>";
+<br>
+EMAIL_END
 
 if ( !$query->param )    #Homepage
 {
@@ -200,7 +211,7 @@ ENDHTML
         if (   ( $string =~ /OS\=(\w+)\s+(\w+)/ )
             || ( $string =~ /\[(\w+)\s+(\w+)/ ) )
         {
-            $organism = $1 . ' ' . $2;
+            $organism = $1 . q{ } . $2;
             if (   ( $' =~ /^$/ )
                 || ( $' =~ /^\s+$/ ) )
             {
@@ -237,11 +248,11 @@ ENDHTML
     my $db = $query->param('db');
     if ( $db eq 'Swiss-Prot' )
     {
-        $db = $Swissprot;
+        $db = $SWISSPROT;
     }
     elsif ( $db eq 'UniProt' )
     {
-        $db = $UniProt;
+        $db = $UNIPROT;
     }
 
     my $email = $query->param('email');
@@ -286,7 +297,10 @@ ENDHTML
 
     my $timeout = 60;
     print "<!--\n";
-    $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
+    my $timeout;
+    {
+        local $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
+    }
     alarm $timeout;
 
     $number_of_cpus = Sys::CPU::cpu_count();    # get the number of cpu cores
@@ -307,10 +321,10 @@ ENDHTML
             {
                 if ( $hit->description =~ /(OS\=\w+)\s+(\w+)/ )
                 {
-                    $des = $1 . ' ' . $2 . $';
+                    $des = $1 . q{ } . $2 . $';
                     if ( $des =~ /OS\=(\w+)\s+(\w+)/ )
                     {
-                        $org = $1 . ' ' . $2;
+                        $org = $1 . q{ } . $2;
                         $organism[$list] =
                           $org;    # Populate the organism dropdown list.
                         $list++;
@@ -326,15 +340,15 @@ ENDHTML
                             }
                             $list2++;
                         }
-                        if ( !( defined $Organisms{$org} ) )
+                        if ( !( defined $organisms{$org} ) )
                         {
                             if ( $hit->accession =~ /tr[|](\w+)[|]/ )
                             {
-                                $Organisms{$org} = $1;
+                                $organisms{$org} = $1;
                             }
                             else
                             {
-                                $Organisms{$org} = $hit->accession;
+                                $organisms{$org} = $hit->accession;
                             }
                         }
                     }
@@ -344,17 +358,17 @@ ENDHTML
     }
     if ( defined $input_hit )
     {
-        foreach $hit (@input_org)
+        foreach my $hit (@input_org)
         {
             if ( $hit eq $input_hit )
             {
-                $Organisms{$organism} = $input_hit;
+                $organisms{$organism} = $input_hit;
             }
         }
     }
     @organism2 = uniq(@organism);
     $mikos     = @organism2;
-    $Orghash   = freeze %Organisms;
+    $orghash   = freeze %organisms;
     alarm 0;
     print "-->\n";
     if ( defined $organism )
@@ -383,11 +397,11 @@ ENDHTML
     <input type=hidden name='prid' value='$prid'>
     <input type=hidden name='db' value='$db'>
     <input type=hidden name='email' value='$email'>
-    <input type=hidden name='Organisms' value='$Orghash'>
+    <input type=hidden name='organisms' value='$orghash'>
     </select></div><input type=submit name='dropdown' value='OK'>
     </form>
     </p>
-    
+        
     <script type="text/javascript">
     document.getElementById("loading").className = "hidden";
     </script>
@@ -402,15 +416,15 @@ elsif ($query->param('organism')
     && $query->param('db')
     && $query->param('email') )
 {
-    my $start_timer = time();
+    my $start_timer = time;
 
     my $organism  = $query->param('organism');
     my $prid      = $query->param('prid');
     my $db        = $query->param('db');
     my $email     = $query->param('email');
-    my %Organisms = thaw $query->param('Organisms');
+    my %organisms = thaw $query->param('organisms');
 
-    $one = $Organisms{$organism};
+    $one = $organisms{$organism};
     $tmp = '../tmps/blastp/' . $prid . '.tmp';
     $out = '../outs/psiblast/' . $prid . '.tmp';
     my $seqfblast = Bio::SeqIO->newFh( -file => $tmp, -format => 'fasta' );
@@ -418,7 +432,10 @@ elsif ($query->param('organism')
 
     my $timeout = 60;
     print "<!--\n";
-    $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
+    my $timeout;
+    {
+        local $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
+    }
     alarm $timeout;
 
     $number_of_cpus = Sys::CPU::cpu_count();    # get the number of cpu cores
@@ -491,10 +508,10 @@ elsif ($query->param('organism')
                     }
                     if ( $hit->description =~ /(OS\=\w+)\s+(\w+)/ )
                     {
-                        $des = $1 . ' ' . $2 . $';
+                        $des = $1 . q{ } . $2 . $';
                         if ( $des =~ /OS\=(\w+)\s+(\w+)/ )
                         {
-                            $org1 = $1 . ' ' . $2;
+                            $org1 = $1 . q{ } . $2;
                         }
                         if ( $org1 eq $organism )
                         {
@@ -550,12 +567,15 @@ elsif ($query->param('organism')
     close $sequences_fh;
 
     open $sequences_fh, '<', $sequences;
-    $/ = "\n";
-    while ( $line = <$sequences_fh> )
+    my $line;
     {
-        $line =~ s/$one/***$one***/;
-        $alignments[$alncounter] = $line;
-        $alncounter++;
+        local $/ = "\n";
+        while ( $line = <$sequences_fh> )
+        {
+            $line =~ s/$one/***$one***/;
+            $alignments[$alncounter] = $line;
+            $alncounter++;
+        }
     }
     close $sequences_fh;
 
@@ -572,18 +592,23 @@ elsif ($query->param('organism')
     my $drawntree = '/web/results/trees/drawn/' . $prid . '.png';
     my $zip       = '/web/results/trees/zips/' . $prid . '.zip';
 
-    $/ = "\n\n";
     open $sequences_fh, '<', $sequences;
-    while ( $line = <$sequences_fh> )
+    my $line;
     {
-        $sequences_number++;
+        local $/ = "\n\n";
+        while ( $line = <$sequences_fh> )
+        {
+            $sequences_number++;
+        }
     }
     close $sequences_fh;
 
     my $timeout = 60;
-
     print "<!--\n";
-    $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
+    my $timeout;
+    {
+        local $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
+    }
     alarm $timeout;
     $email2 = $email;
     $email2 =~ s/([\@])/\\$1/;
@@ -597,11 +622,11 @@ elsif ($query->param('organism')
         `rm *.dnd`;
         `mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
 `mv /web/results/final_alns/multalign/$prid.phb /web/results/trees/phbs/`;
-        tree_manipulationI($phb);
+        tree_manipulation1($phb);
         `./Pinda.R -parser $phb > /web/parsing/$prid.tmp`;
         `./Pinda.R -lengths_1 $phb > /web/parsing/$prid\_1.tmp`;
         `./Pinda.R -lengths_2 $phb > /web/parsing/$prid\_2.tmp`;
-        tree_manipulationII($phb);
+        tree_manipulation2($phb);
         `zip -j $zip $ph $phb`;
         `./Pinda.R $drawntree $phb`;    #Visually draw the tree.
         `rm $ph $phb`;
@@ -621,16 +646,17 @@ elsif ($query->param('organism')
         <th><center>Confidence Value</center></th></tr>
 ENDHTML
 
-        $email_data = $email_data
-          . "<center><br><font size='3' face='Georgia' color='330033'>
+        $email_data .= <<'EMAIL_END';
+        <center><br><font size='3' face='Georgia' color='330033'>
         <a href=http://localhost/results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a>
         </font>
         <br><br>
         <table border='1'>
         <tr bgcolor=FFFF66><th><center>Possible duplications of <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point</a>.</center></th>
-        <th><center>Confidence Value</center></th></tr>";
+        <th><center>Confidence Value</center></th></tr>
+EMAIL_END
 
-        foreach $can (@candidate)
+        foreach my $can (@candidate)
         {
             if (   $can !~ /$starting_point/
                 && $can =~ /(\d?.?\d+e?-?\d*) (\w+)/ )
@@ -647,14 +673,11 @@ ENDHTML
                 }
                 print
 "<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td>";
-                printf( "<td align=left><center>%15.13f</center></td></tr>",
-                    $1 );
-                $email_data =
-                    $email_data
-                  . "<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td>"
-                  . sprintf(
-                    "<td align=left><center>%15.13f</center></td></tr>",
-                    $1 );
+                printf '<td align=left><center>%15.13f</center></td></tr>', $1;
+                $email_data .=
+"<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td>"
+                  . sprintf '<td align=left><center>%15.13f</center></td></tr>',
+                  $1;
             }
         }
         print '</table>';
@@ -662,9 +685,10 @@ ENDHTML
         <img src='../results/trees/drawn/$prid.png'><br>
         <a href=../results/trees/zips/$prid.zip>NJ Tree Produced</a>
 ENDHTML
-        $email_data = $email_data
-          . "</table><img src='http://localhost/results/trees/drawn/$prid.png'><br>
-        <a href=http://localhost/results/trees/zips/$prid.zip>NJ Tree Produced</a>";
+        $email_data .= <<'EMAIL_END';
+        </table><img src='http://localhost/results/trees/drawn/$prid.png'><br>
+        <a href=http://localhost/results/trees/zips/$prid.zip>NJ Tree Produced</a>
+EMAIL_END
 
     }
     else
@@ -684,9 +708,9 @@ ENDHTML
             `clustalw -INFILE=$fnaln -OUTFILE=$ph -tree`;
 `mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
             `rm *.dnd`;
-            tree_manipulationI($ph);
+            tree_manipulation1($ph);
             `./Pinda.R -parser $ph > /web/parsing/$prid.tmp`;
-            tree_manipulationII($ph);
+            tree_manipulation2($ph);
 
             `zip -j $zip $ph`;
             `./Pinda.R $drawntree $ph`;    #Visually draw the tree.
@@ -704,7 +728,7 @@ ENDHTML
             <th><center>Confidence Value</center></th></tr>
 ENDHTML
 
-            foreach $can (@candidate)
+            foreach my $can (@candidate)
             {
                 if ( $can !~ /$starting_point/ && $can =~ /(\d?.?\d+) (\w+)/ )
                 {
@@ -720,14 +744,14 @@ ENDHTML
                     }
                     print
 "<tr><td bgcolor=$tdbg><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td>";
-                    printf( "<td align=left><center>%15.13f</center></td></tr>",
-                        $1 );
+                    printf '<td align=left><center>%15.13f</center></td></tr>',
+                      $1;
                 }
             }
             print '</table>';
             print "<img src='../results/trees/drawn/$prid.png'>";
         }
-        if ( $sequences_number == '2' )
+        if ( $sequences_number == 2 )
         {
             alarm 0;
             print <<"ENDHTML";
@@ -744,7 +768,7 @@ ENDHTML
                 <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a></font>
 ENDHTML
         }
-        if ( $sequences_number == '1' )
+        if ( $sequences_number == 1 )
         {
             alarm 0;
             print <<"ENDHTML";
@@ -756,7 +780,7 @@ ENDHTML
 ENDHTML
         }
     }
-    my $end_timer = time();
+    my $end_timer = time;
     my $run_time  = $end_timer - $start_timer;
     job_timer($run_time);
 
@@ -773,20 +797,23 @@ sub tcoffee    #Pretty self-explanatory.
     export NO_ERROR_REPORT_4_TCOFFEE='1' ;
     export NO_WARNING_4_TCOFFEE='1' ;
     t_coffee -infile $_[0] -output=clustal,fasta_aln -outfile $_[1] -proxy -email=$_[2]`;
-    return;
+    return 0;
 }
 
-sub tree_manipulationI
+sub tree_manipulation1
 {
     open $tree_fh, '<', $_[0];
-    $/ = "\n";
-    while ( $line = <$tree_fh> )
+    my $line;
     {
-        $line =~ s/TRICHOTOMY//;    #Remove the 'TRICHOTOMY' word.
-        $line =~ s/-\d[.]\d*/0/
-          ; #Fix NJ negative branch length artifact, by setting those numbers to zero.
-        $tree[$yacounter] = $line;
-        $yacounter++;
+        local $/ = "\n";
+        while ( $line = <$tree_fh> )
+        {
+            $line =~ s/TRICHOTOMY//;    #Remove the 'TRICHOTOMY' word.
+            $line =~ s/-\d[.]\d*/0/
+              ; #Fix NJ negative branch length artifact, by setting those numbers to zero.
+            $tree[$yacounter] = $line;
+            $yacounter++;
+        }
     }
     close $tree_fh;
     open $tree_fh, '>', $_[0];
@@ -795,23 +822,27 @@ sub tree_manipulationI
         print {$tree_fh} $yacounter;
     }
     close $tree_fh;
+    return 0;
 }
 
-sub tree_manipulationII
+sub tree_manipulation2
 {
     @tree      = ();
     $yacounter = 0;
     open $tree_fh, '<', $_[0];
-    $/ = "\n";
-    while ( $line = <$tree_fh> )
+    my $line;
     {
-        if ( $line =~ /^(\d+):/ )
+        local $/ = "\n";
+        while ( $line = <$tree_fh> )
         {
-            $bvdiv = $1 / 10.0;
-            $line  = $` . $bvdiv . ':' . $';
+            if ( $line =~ /^(\d+):/ )
+            {
+                $bvdiv = $1 / 10.0;
+                $line  = $` . $bvdiv . q{:} . $';
+            }
+            $tree[$yacounter] = $line;
+            $yacounter++;
         }
-        $tree[$yacounter] = $line;
-        $yacounter++;
     }
     close $tree_fh;
     open $tree_fh, '>', $_[0];
@@ -820,50 +851,69 @@ sub tree_manipulationII
         print {$tree_fh} $yacounter;
     }
     close $tree_fh;
+    return 0;
 }
 
 sub parser
 {
     open $tree_for_parsingfh, '<', $_[0];
-    $/ = "\n\n";
-    while ( $line = <$tree_for_parsingfh> )
+    my $line;
     {
-        if ( $line =~ /\_\_\_(\w+)\_\_\_/ )
+        local $/ = "\n\n";
+        while ( $line = <$tree_for_parsingfh> )
         {
-            $starting_point = $1;
-            $uni_ids[$unicounter] = $1;
-            $unicounter++;
-        }
-        if ( $line =~ /"(\w{6})"/ )
-        {
-            if ( $1 !~ /_/ )
+            if ( $line =~ /\_\_\_(\w+)\_\_\_/ )
+            {
+                $starting_point = $1;
+                $uni_ids[$unicounter] = $1;
+                $unicounter++;
+            }
+            if ( $line =~ /"(\w{6})"/ )
+            {
+                if ( $1 !~ /_/ )
+                {
+                    $uni_ids[$unicounter] = $1;
+                    $unicounter++;
+                }
+            }
+            if ( $' =~ /"(\w{6})"/ && $1 !~ /_/ )
             {
                 $uni_ids[$unicounter] = $1;
                 $unicounter++;
             }
+            $parsing_lines[$linocounter] = $line;
+            $linocounter++;
         }
-        if ( $' =~ /"(\w{6})"/ && $1 !~ /_/ )
-        {
-            $uni_ids[$unicounter] = $1;
-            $unicounter++;
-        }
-        $parsing_lines[$linocounter] = $line;
-        $linocounter++;
     }
     close $tree_for_parsingfh;
 
     open $tree_node_distancesfh, '<', $_[1];
-    $/ = "\n";
-    while ( $neoline = <$tree_node_distancesfh> )
+    my $neoline;
     {
-        if ( $neoline !~ /\$/ && $neoline =~ /\w/ )
+        local $/ = "\n";
+        while ( $neoline = <$tree_node_distancesfh> )
         {
-          CONTINUE_PARSING:
-            if ( $neoline !~ /\./ )
+            if ( $neoline !~ /\$/ && $neoline =~ /\w/ )
             {
-                if ( $neoline =~ /\s?(\w+)/ || $neoline =~ /(Root)/ )
+              CONTINUE_PARSING:
+                if ( $neoline !~ /[.]/ )
                 {
-                    $parsed_lines[$plc][$plc2] = $1;
+                    if ( $neoline =~ /\s?(\w+)/ || $neoline =~ /(Root)/ )
+                    {
+                        $parsed_lines[$plc][$plc2] = $1;
+                        $plc2++;
+                        $continue = $';
+                        if ( $continue =~ /\w/ )
+                        {
+                            $neoline = $continue;
+                            goto CONTINUE_PARSING;
+                        }
+                        $plc++;
+                    }
+                }
+                elsif ( $neoline =~ /(\d+[.]\d+)/ )
+                {
+                    $distanceshash{ $parsed_lines[ $plc - 1 ][$plc2] } = $1;
                     $plc2++;
                     $continue = $';
                     if ( $continue =~ /\w/ )
@@ -871,36 +921,40 @@ sub parser
                         $neoline = $continue;
                         goto CONTINUE_PARSING;
                     }
-                    $plc++;
                 }
+                $plc2 = 0;
             }
-            elsif ( $neoline =~ /(\d+\.\d+)/ )
-            {
-                $DistancesHash{ $parsed_lines[ $plc - 1 ][$plc2] } = $1;
-                $plc2++;
-                $continue = $';
-                if ( $continue =~ /\w/ )
-                {
-                    $neoline = $continue;
-                    goto CONTINUE_PARSING;
-                }
-            }
-            $plc2 = 0;
         }
     }
     close $tree_node_distancesfh;
     open $tree_tip_distancesfh, '<', $_[2];
-    $/ = "\n";
-    while ( $neoline2 = <$tree_tip_distancesfh> )
+    my $neoline2;
     {
-        if ( $neoline2 !~ /\$/ && $neoline2 =~ /\w/ )
+        local $/ = "\n";
+        while ( $neoline2 = <$tree_tip_distancesfh> )
         {
-          KEEP_ON_PARSING:
-            if ( $neoline2 !~ /\./ )
+            if ( $neoline2 !~ /\$/ && $neoline2 =~ /\w/ )
             {
-                if ( $neoline2 =~ /\_?\_?\_?(\w{6})\_?\_?\_?\s/ )
+              KEEP_ON_PARSING:
+                if ( $neoline2 !~ /[.]/ )
                 {
-                    $parsed_linesnew[$plcn][$plcn2] = $1;
+                    if ( $neoline2 =~ /\_?\_?\_?(\w{6})\_?\_?\_?\s/ )
+                    {
+                        $parsed_linesnew[$plcn][$plcn2] = $1;
+                        $plcn2++;
+                        $continue = $';
+                        if ( $continue =~ /\w/ )
+                        {
+                            $neoline2 = $continue;
+                            goto KEEP_ON_PARSING;
+                        }
+                        $plcn++;
+                    }
+                }
+                elsif ( $neoline2 =~ /(\d+[.]\d+)/ )
+                {
+                    $distanceshash2{ $parsed_linesnew[ $plcn - 1 ][$plcn2] } =
+                      $1;
                     $plcn2++;
                     $continue = $';
                     if ( $continue =~ /\w/ )
@@ -908,26 +962,14 @@ sub parser
                         $neoline2 = $continue;
                         goto KEEP_ON_PARSING;
                     }
-                    $plcn++;
                 }
+                $plcn2 = 0;
             }
-            elsif ( $neoline2 =~ /(\d+\.\d+)/ )
-            {
-                $DistancesHash2{ $parsed_linesnew[ $plcn - 1 ][$plcn2] } = $1;
-                $plcn2++;
-                $continue = $';
-                if ( $continue =~ /\w/ )
-                {
-                    $neoline2 = $continue;
-                    goto KEEP_ON_PARSING;
-                }
-            }
-            $plcn2 = 0;
         }
     }
     close $tree_tip_distancesfh;
 
-    foreach $line (@parsing_lines)
+    foreach my $line (@parsing_lines)
     {
         if ( $line =~ /$starting_point/ )
         {
@@ -937,7 +979,7 @@ sub parser
                 $search_id = $1 . $2;
                 $sscounter++;
             }
-            foreach $line (@parsing_lines)
+            foreach my $line (@parsing_lines)
             {
               LOOP0:
                 if ( $line =~ /$search_id"/ )
@@ -953,10 +995,10 @@ sub parser
             }
         }
     }
-    foreach $uni (@uni_ids)
+    foreach my $uni (@uni_ids)
     {
         $sscounter = 0;
-        foreach $line (@parsing_lines)
+        foreach my $line (@parsing_lines)
         {
             if ( $line =~ /$uni/ )
             {
@@ -966,7 +1008,7 @@ sub parser
                     $search_id = $1 . $2;
                     $sscounter++;
                 }
-                foreach $line (@parsing_lines)
+                foreach my $line (@parsing_lines)
                 {
                   LOOP:
                     if ( $line =~ /$search_id"/ )
@@ -982,27 +1024,27 @@ sub parser
                 }
             }
         }
-        foreach $node (@compare_seq)
+        foreach my $node (@compare_seq)
         {
             if ( $node =~ /(\d+)\_?/ )
             {
-                $node_distance += $DistancesHash{"$node"};
+                $node_distance += $distanceshash{"$node"};
                 $ginomenon *= $1 / 1000.0;
             }
-            foreach $star_node (@star_seq)
+            foreach my $star_node (@star_seq)
             {
                 if ( $node eq $star_node )
                 {
-                    foreach $star_node (@star_seq)
+                    foreach my $star_node (@star_seq)
                     {
                         if ( $star_node ne $node && $star_node =~ /(\d+)\_?/ )
                         {
-                            $node_distance += $DistancesHash{"$star_node"};
+                            $node_distance += $distanceshash{"$star_node"};
                             $ginomenon *= $1 / 1000.0;
                         }
                         if ( $star_node eq $node )
                         {
-                            $node_distance -= $DistancesHash{"$star_node"};
+                            $node_distance -= $distanceshash{"$star_node"};
                             goto EXIT0;
                         }
                     }
@@ -1010,11 +1052,11 @@ sub parser
                     if ( $uni !~ /$starting_point/ )
                     {
                         $node_distance +=
-                          $DistancesHash2{"$uni"} +
-                          $DistancesHash2{"$starting_point"};
+                          $distanceshash2{"$uni"} +
+                          $distanceshash2{"$starting_point"};
                         $degree_of_confidence = $ginomenon / $node_distance;
                         $candidate[$cancounter] =
-                          $degree_of_confidence . ' ' . $uni;
+                          $degree_of_confidence . q{ } . $uni;
                         $cancounter++;
                     }
                     goto EXIT;
@@ -1023,26 +1065,26 @@ sub parser
         }
         $node_distance = 0;
         $ginomenon     = 1;
-        foreach $node (@compare_seq)
+        foreach my $node (@compare_seq)
         {
             if ( $node =~ /(\d+)\_?/ )
             {
-                $node_distance += $DistancesHash{"$node"};
+                $node_distance += $distanceshash{"$node"};
                 $ginomenon *= $1 / 1000.0;
             }
         }
-        foreach $star_node (@star_seq)
+        foreach my $star_node (@star_seq)
         {
             if ( $star_node =~ /(\d+)\_?/ )
             {
-                $node_distance += $DistancesHash{"$star_node"};
+                $node_distance += $distanceshash{"$star_node"};
                 $ginomenon *= $1 / 1000.0;
             }
         }
         $node_distance +=
-          $DistancesHash2{"$uni"} + $DistancesHash2{"$starting_point"};
+          $distanceshash2{"$uni"} + $distanceshash2{"$starting_point"};
         $degree_of_confidence = $ginomenon / $node_distance;
-        $candidate[$cancounter] = $degree_of_confidence . ' ' . $uni;
+        $candidate[$cancounter] = $degree_of_confidence . q{ } . $uni;
         $cancounter++;
       EXIT:
         $node_distance = 0;
@@ -1060,7 +1102,6 @@ sub job_timer
     {
         $hours = $_[0] / 3600;
         $_[0] %= 3600;
-
     }
     if ( $_[0] > 60 )
     {
@@ -1071,125 +1112,126 @@ sub job_timer
     {
         $seconds = $_[0];
     }
-    print "<br><br><font size='2' face='Courier New'><center>This job took ";
+    print '<br><br><font size="2" face="Courier New"><center>This job took ';
     if ( defined $hours && defined $minutes && defined $seconds )
     {
         if ( $hours >= 2 )
         {
-            printf( "<b>%.0f hours</b>,", $hours );
+            printf '<b>%.0f hours</b>,', $hours;
         }
         else
         {
-            printf("<b>1 hour</b>,");
+            printf '<b>1 hour</b>,';
         }
         if ( $minutes >= 2 )
         {
-            printf( " <b>%.0f minutes</b>", $minutes );
+            printf ' <b>%.0f minutes</b>', $minutes;
         }
         else
         {
-            printf(" <b>1 minute</b>");
+            printf ' <b>1 minute</b>';
         }
         if ( $seconds >= 2 )
         {
-            printf( " and <b>%.0f seconds</b>.", $seconds );
+            printf ' and <b>%.0f seconds</b>.', $seconds;
         }
         else
         {
-            printf(" and <b>1 second</b>.");
+            printf ' and <b>1 second</b>.';
         }
     }
     elsif ( defined $hours && defined $minutes )
     {
         if ( $hours >= 2 )
         {
-            printf( "<b>%.0f hours</b>", $hours );
+            printf '<b>%.0f hours</b>', $hours;
         }
         else
         {
-            printf("<b>1 hour</b>");
+            printf '<b>1 hour</b>';
         }
         if ( $minutes >= 2 )
         {
-            printf( " and <b>%.0f minutes</b>.", $minutes );
+            printf ' and <b>%.0f minutes</b>.', $minutes;
         }
         else
         {
-            printf(" and <b>1 minute</b>.");
+            printf ' and <b>1 minute</b>.';
         }
     }
     elsif ( defined $hours && defined $seconds )
     {
         if ( $hours >= 2 )
         {
-            printf( "<b>%.0f hours</b>", $hours );
+            printf '<b>%.0f hours</b>', $hours;
         }
         else
         {
-            printf("<b>1 hour</b>");
+            printf '<b>1 hour</b>';
         }
         if ( $seconds >= 2 )
         {
-            printf( " and <b>%.0f seconds</b>.", $seconds );
+            printf ' and <b>%.0f seconds</b>.', $seconds;
         }
         else
         {
-            printf(" and <b>1 second</b>.");
+            printf ' and <b>1 second</b>.';
         }
     }
     elsif ( defined $minutes && defined $seconds )
     {
         if ( $minutes >= 2 )
         {
-            printf( "<b>%.0f minutes</b>", $minutes );
+            printf '<b>%.0f minutes</b>', $minutes;
         }
         else
         {
-            printf("<b>1 minute</b>");
+            printf '<b>1 minute</b>';
         }
         if ( $seconds >= 2 )
         {
-            printf( " and <b>%.0f seconds</b>.", $seconds );
+            printf ' and <b>%.0f seconds</b>.', $seconds;
         }
         else
         {
-            printf(" and <b>1 second</b>.");
+            printf ' and <b>1 second</b>.';
         }
     }
     elsif ( defined $hours )
     {
         if ( $hours >= 2 )
         {
-            printf( "<b>%.0f hours</b>.", $hours );
+            printf '<b>%.0f hours</b>.', $hours;
         }
         else
         {
-            printf("<b>1 hour</b>.");
+            printf '<b>1 hour</b>.';
         }
     }
     elsif ( defined $minutes )
     {
         if ( $minutes >= 2 )
         {
-            printf( "<b>%.0f minutes</b>.", $minutes );
+            printf '<b>%.0f minutes</b>.', $minutes;
         }
         else
         {
-            printf("<b>1 minute</b>.");
+            printf '<b>1 minute</b>.';
         }
     }
     elsif ( defined $seconds )
     {
         if ( $seconds >= 2 )
         {
-            printf( "<b>%.0f seconds</b>.", $seconds );
+            printf '<b>%.0f seconds</b>.', $seconds;
         }
         else
         {
-            printf("<b>1 second</b>.");
+            printf '<b>1 second</b>.';
         }
     }
-    print "</font></center>";
+    print '</font></center>';
+    return 0;
 }
 
 sub send_email
@@ -1202,4 +1244,5 @@ sub send_email
         Data    => $email_data
     );
     $msg->send();
+    return 0;
 }

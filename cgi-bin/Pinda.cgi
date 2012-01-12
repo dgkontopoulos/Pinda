@@ -1054,10 +1054,18 @@ sub parser
                         $node_distance +=
                           $distanceshash2{"$uni"} +
                           $distanceshash2{"$starting_point"};
-                        $degree_of_confidence = $ginomenon / $node_distance;
-                        $candidate[$cancounter] =
-                          $degree_of_confidence . q{ } . $uni;
-                        $cancounter++;
+                        if ( $node_distance == 0 )
+                        {
+                            $candidate[$cancounter] = $ginomenon . q{ } . $uni;
+                            $cancounter++;
+                        }
+                        else
+                        {
+                            $degree_of_confidence = $ginomenon / $node_distance;
+                            $candidate[$cancounter] =
+                              $degree_of_confidence . q{ } . $uni;
+                            $cancounter++;
+                        }
                     }
                     goto EXIT;
                 }

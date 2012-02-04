@@ -27,64 +27,7 @@ use Sys::CPU;
 use strict;
 use warnings;
 
-my $SWISSPROT        = '../databases/Swissprot/uniprot_sprot.fasta';
-my $UNIPROT          = '../databases/UniProt/UniProt.fasta';
-my $alncounter       = 0;
-my $bscounter        = 1;
-my $cancounter       = 0;
-my $gcounter         = 0;
-my $ginomenon        = 1;
-my $hit_old          = 0;
-my $it_counting      = 0;
-my $it_exit          = 0;
-my $iteration_number = 0;
-my $jac              = 0;
-my $linocounter      = 0;
-my $list             = 0;
-my $list2            = 0;
-my $node_distance    = 0;
-my $p                = 0;
-my $p2               = 0;
-my $parse_counter    = 0;
-my $pathcounter      = 0;
-my $pc_id            = 0;
-my $plc              = 0;
-my $plc2             = 0;
-my $plcn             = 0;
-my $plcn2            = 0;
-my $resnum           = 0;
-my $resnum2          = 0;
-my $sequences_number = 0;
-my $sscounter        = 0;
-my $tdcounter        = 0;
-my $unicounter       = 0;
-my $yacounter        = 0;
-my (
-    $acnumber,             $alignment,             $alns,
-    $alns_fh,              $bvdiv,                 $continue,
-    $degree_of_confidence, $des,                   $drawntree,
-    $email2,               $email_data,            $fnaln,
-    $hit,                  $hit_check,             $hours,
-    $i,                    $input_hit,             $line,
-    $match_line,           $mikos,                 $minutes,
-    $neoline,              $neoline2,              $number_of_cpus,
-    $one,                  $org,                   $org1,
-    $organism,             $orghash,               $out,
-    $out_fh,               $ph,                    $prid,
-    $results,              $results_fh,            $search_id,
-    $seconds,              $sequence,              $sequences,
-    $sequences_fh,         $starting_point,        $tdbg,
-    $tmp,                  $tmp_fh,                $tree_fh,
-    $tree_for_parsingfh,   $tree_node_distancesfh, $tree_tip_distancesfh,
-    @accession,            @alignments,            @candidate,
-    @compare_seq,          @evalue,                @input_org,
-    @numero,               @organism,              @organism2,
-    @parsed_lines,         @parsed_linesnew,       @parsing_lines,
-    @reslines,             @score,                 @seq,
-    @seq2,                 @star_seq,              @tree,
-    @uni_ids,              %distanceshash,         %distanceshash2,
-    %organisms
-);
+my ( $starting_point, @candidate );
 
 open STDERR, '>', '/dev/null';
 
@@ -124,7 +67,7 @@ print <<"ENDHTML";
 </center>
 ENDHTML
 
-$email_data = <<'EMAIL_END';
+my $email_data = <<'EMAIL_END';
 <center><br>
 <a href='http://localhost/cgi-bin/Pinda.cgi'><img src='http://localhost/pindalogo.png'></a>
 <br>
@@ -172,6 +115,15 @@ ENDHTML
 
 elsif ( !$query->param('button') && !$query->param('dropdown') )
 {
+    my $SWISSPROT = '../databases/Swissprot/uniprot_sprot.fasta';
+    my $UNIPROT   = '../databases/UniProt/UniProt.fasta';
+    my $list      = 0;
+    my $list2     = 0;
+
+    my (
+        $des,      $hit,    $hit_check, $input_hit, $org,
+        $organism, $tmp_fh, @input_org, @organism,  %organisms
+    );
     print '<center>';
     my $string = $query->param('sequence');
     if ( $string =~ /^$/ )
@@ -288,22 +240,21 @@ ENDHTML
 ENDHTML
 
     #Get process id and set BLAST parameters#
-    $prid = $$;
-    $tmp  = '../tmps/blastp/' . $prid . '.tmp';
-    $out  = '../outs/blastp/' . $prid . '.tmp';
+    my $prid = $$;
+    my $tmp  = '../tmps/blastp/' . $prid . '.tmp';
+    my $out  = '../outs/blastp/' . $prid . '.tmp';
     open $tmp_fh, '>', $tmp;
     print {$tmp_fh} "$string";
     close $tmp_fh;
 
-    my $timeout = 60;
     print "<!--\n";
-    my $timeout;
+    my $timeout = 60;
     {
         local $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
     }
     alarm $timeout;
 
-    $number_of_cpus = Sys::CPU::cpu_count();    # get the number of cpu cores
+    my $number_of_cpus = Sys::CPU::cpu_count();    # get the number of cpu cores
 `blastp -query $tmp -db $db -evalue 0.00000001 -num_threads $number_of_cpus -out $out`;
 
     my $blast = Bio::SearchIO->new(
@@ -366,9 +317,9 @@ ENDHTML
             }
         }
     }
-    @organism2 = uniq(@organism);
-    $mikos     = @organism2;
-    $orghash   = freeze %organisms;
+    my @organism2 = uniq(@organism);
+    my $mikos     = @organism2;
+    my $orghash   = freeze %organisms;
     alarm 0;
     print "-->\n";
     if ( defined $organism )
@@ -416,6 +367,20 @@ elsif ($query->param('organism')
     && $query->param('db')
     && $query->param('email') )
 {
+    my $alncounter       = 0;
+    my $hit_old          = 0;
+    my $iteration_number = 0;
+    my $resnum           = 0;
+    my $resnum2          = 0;
+    my $sequences_number = 0;
+    my $tdcounter        = 0;
+
+    my (
+        $acnumber,   $alignment,    $alns_fh,    $des,       $hit,
+        $i,          $line,         $match_line, $org1,      $out_fh,
+        $results_fh, $sequences_fh, $tdbg,       @accession, @alignments,
+        @evalue,     @reslines,     @score,      @seq,       @seq2
+    );
     my $start_timer = time;
 
     my $organism  = $query->param('organism');
@@ -424,13 +389,12 @@ elsif ($query->param('organism')
     my $email     = $query->param('email');
     my %organisms = thaw $query->param('organisms');
 
-    $one = $organisms{$organism};
-    $tmp = '../tmps/blastp/' . $prid . '.tmp';
-    $out = '../outs/psiblast/' . $prid . '.tmp';
-    my $seqfblast = Bio::SeqIO->newFh( -file => $tmp, -format => 'fasta' );
+    my $one        = $organisms{$organism};
+    my $tmp        = '../tmps/blastp/' . $prid . '.tmp';
+    my $out        = '../outs/psiblast/' . $prid . '.tmp';
+    my $seqfblast  = Bio::SeqIO->newFh( -file => $tmp, -format => 'fasta' );
     my $seqfblast2 = <$seqfblast>;
 
-    my $timeout = 60;
     print "<!--\n";
     my $timeout;
     {
@@ -438,7 +402,7 @@ elsif ($query->param('organism')
     }
     alarm $timeout;
 
-    $number_of_cpus = Sys::CPU::cpu_count();    # get the number of cpu cores
+    my $number_of_cpus = Sys::CPU::cpu_count();    # get the number of cpu cores
 `legacy_blast.pl blastpgp -i $tmp -b 7000 -j 50 -h 0.00000001 -d $db -a $number_of_cpus -o $out`;
 
     open $out_fh, '<', $out;
@@ -529,7 +493,6 @@ elsif ($query->param('organism')
                             {
                                 $score[$number]  = $hit->score;
                                 $evalue[$number] = $hit->significance;
-                                $numero[$number] = $it->number;
                                 my $aln = $hsp->get_aln;
                                 $alignment->write_aln($aln);
                                 open $alns_fh, '>>', $alns;
@@ -551,8 +514,6 @@ elsif ($query->param('organism')
         }
     }
     close $results_fh;
-    alarm 0;
-    print "-->\n";
 
     #Append sequences to file.#
     @seq2 = uniq(@seq);
@@ -567,13 +528,13 @@ elsif ($query->param('organism')
     close $sequences_fh;
 
     open $sequences_fh, '<', $sequences;
-    my $line;
+    my $line2;
     {
         local $/ = "\n";
-        while ( $line = <$sequences_fh> )
+        while ( $line2 = <$sequences_fh> )
         {
-            $line =~ s/$one/***$one***/;
-            $alignments[$alncounter] = $line;
+            $line2 =~ s/$one/***$one***/;
+            $alignments[$alncounter] = $line2;
             $alncounter++;
         }
     }
@@ -593,24 +554,18 @@ elsif ($query->param('organism')
     my $zip       = '/web/results/trees/zips/' . $prid . '.zip';
 
     open $sequences_fh, '<', $sequences;
-    my $line;
+    my $line3;
     {
         local $/ = "\n\n";
-        while ( $line = <$sequences_fh> )
+        while ( $line3 = <$sequences_fh> )
         {
             $sequences_number++;
         }
     }
     close $sequences_fh;
 
-    my $timeout = 60;
-    print "<!--\n";
-    my $timeout;
-    {
-        local $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
-    }
-    alarm $timeout;
-    $email2 = $email;
+    alarm 0;
+    my $email2 = $email;
     $email2 =~ s/([\@])/\\$1/;
     if ( $sequences_number > 3 )
     {
@@ -802,6 +757,8 @@ sub tcoffee    #Pretty self-explanatory.
 
 sub tree_manipulation1
 {
+    my $yacounter = 0;
+    my ( $tree_fh, @tree );
     open $tree_fh, '<', $_[0];
     my $line;
     {
@@ -827,8 +784,9 @@ sub tree_manipulation1
 
 sub tree_manipulation2
 {
-    @tree      = ();
-    $yacounter = 0;
+    my $yacounter = 0;
+    my ( $bvdiv, $tree_fh );
+    my @tree = ();
     open $tree_fh, '<', $_[0];
     my $line;
     {
@@ -856,6 +814,25 @@ sub tree_manipulation2
 
 sub parser
 {
+    my $cancounter    = 0;
+    my $ginomenon     = 1;
+    my $linocounter   = 0;
+    my $node_distance = 0;
+    my $plc           = 0;
+    my $plc2          = 0;
+    my $plcn          = 0;
+    my $plcn2         = 0;
+    my $sscounter     = 0;
+    my $unicounter    = 0;
+
+    my (
+        $continue,           $degree_of_confidence,  $search_id,
+        $tree_for_parsingfh, $tree_node_distancesfh, $tree_tip_distancesfh,
+        @compare_seq,        @parsed_lines,          @parsed_linesnew,
+        @parsing_lines,      @star_seq,              @uni_ids,
+        %distanceshash,      %distanceshash2
+    );
+
     open $tree_for_parsingfh, '<', $_[0];
     my $line;
     {
@@ -1106,6 +1083,7 @@ sub parser
 
 sub job_timer
 {
+    my ( $hours, $minutes, $seconds );
     if ( $_[0] > 3600 )
     {
         $hours = $_[0] / 3600;

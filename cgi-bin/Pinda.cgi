@@ -1,8 +1,28 @@
 #!/usr/bin/perl -w
 
-###################
-#Pinda source code#
-###################
+=head1 NAME
+
+PINDA - Pipeline for INtraspecies Duplication Analysis
+
+=head1 DESCRIPTION
+
+A CGI program aiming to facilitate detection of specific gene
+duplications in an organism species of choice.
+
+=head1 AUTHOR
+
+Dimitrios - Georgios Kontopoulos
+
+=head1 LICENSE
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+For more information, see http://www.gnu.org/licenses/.
+
+=cut
 
 use autodie;
 use Bio::AlignIO;

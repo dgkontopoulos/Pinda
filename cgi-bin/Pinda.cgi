@@ -1,5 +1,7 @@
 #!/usr/bin/perl -w
 
+#$VERSION = '0.01';
+
 =head1 NAME
 
 PINDA - Pipeline for INtraspecies Duplication Analysis

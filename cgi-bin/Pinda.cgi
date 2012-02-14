@@ -26,7 +26,6 @@ For more information, see http://www.gnu.org/licenses/.
 
 =cut
 
-use autodie;
 use Bio::AlignIO;
 use Bio::Perl;
 use Bio::Root::IO;
@@ -46,10 +45,11 @@ use List::MoreUtils qw(uniq);
 use MIME::Lite;
 use Sys::CPU;
 
+use autodie;
 use strict;
 use warnings;
 
-my ( $starting_point, @candidate );
+our ( $starting_point, @candidate );
 
 open STDERR, '>', '/dev/null';
 
@@ -65,23 +65,20 @@ print <<"ENDHTML";
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /> 
 <link rel="stylesheet" href="../css/Pinda.css" type="text/css">
 
-ENDHTML
-print <<"ENDHTML";
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js" type="text/javascript" charset="utf-8"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"
+type="text/javascript" charset="utf-8"></script>
 
-<script src="../js/jquery.dropkick.1-0.1.js" type="text/javascript" charset="utf-8"></script>
-<script type="text/javascript" charset="utf-8">
+<script src="../js/jquery.dropkick.1-0.1.js" type="text/javascript" 
+charset="utf-8"></script><script type="text/javascript" charset="utf-8">
 \$(function () {
     \$('.default').dropkick();
 });
 </script>
+
 </head>
 <body background='../background.jpg'>
 <LINK REL='SHORTCUT ICON' HREF='../pinda.ico'>
-<center>
-<br>
-<a href='$0'><img src='../pindalogo.png'></a>
-<br>
+<center><br><a href='$0'><img src='../pindalogo.png'></a><br>
 <p style='width: 500px; text-align:center;margin-bottom:1px;margin-top:1px'>
 <br>
 <hr/>
@@ -91,7 +88,8 @@ ENDHTML
 
 my $email_data = <<'EMAIL_END';
 <center><br>
-<a href='http://localhost/cgi-bin/Pinda.cgi'><img src='http://localhost/pindalogo.png'></a>
+<a href='http://localhost/cgi-bin/Pinda.cgi'>
+<img src='http://localhost/pindalogo.png'></a>
 <br>
 EMAIL_END
 
@@ -104,32 +102,31 @@ if ( !$query->param )    #Homepage
     <i>Please enter a sequence.</i>
     </font><br>
     <form id = 'submit' method = 'post' action=$0>
-    <textarea name='sequence' rows=7 cols=55 style='font-family:courier new'></textarea>
-    </p><br>
+    <textarea name='sequence' rows=7 cols=55 style='font-family:courier new'>
+    </textarea></p><br>
     <p style='width: 470px; text-align:left;margin-bottom:1px;margin-top:1px'>
-    <font size='3' face='Georgia' color='330033'><i>Please choose a database.</i></font><br>
-    <center>
-    <font size='2'>
+    <font size='3' face='Georgia' color='330033'><i>Please choose a database.
+    </i></font><br>
+    <center><font size='2'>
     <input type="radio" name="db" value="Swiss-Prot" checked> <b>Swiss-Prot</b>
-    <input type="radio" name="db" value="UniProt"> <b>UniProt</b> (<i>Swiss-Prot + TrEMBL</i>)
+    <input type="radio" name="db" value="UniProt"> <b>UniProt</b> (<i>Swiss-Prot
+     + TrEMBL</i>)
     </font>
     </center>
     </p><br>
     <p style='width: 470px; text-align:left;margin-bottom:1px;margin-top:1px'>
-    <font size='3' face='Georgia' color='330033'><i>Please enter a valid email address so that you can be notified upon job completion.</i></font><br>
-    </p>
-    <center>
-    <input type='text' name='email' size="40" maxlength="60"></input>
-    <br><br>
-    <input id='submit' TYPE='submit' value=' Submit '></form>
-    </center>
+    <font size='3' face='Georgia' color='330033'><i>Please enter a valid email
+    address so that you can be notified upon job completion.</i></font><br></p>
+    <center><input type='text' name='email' size="40" maxlength="60"></input>
+    <br><br><input id='submit' TYPE='submit' value=' Submit '></form></center>
+    
     <script type="text/javascript">
     \$('#submit').submit(function(){
     \$('input[type=submit]', this).attr('disabled', 'disabled');
     }); 
     </script> 
-    </body>
-    </html>
+    
+    </body></html>
 ENDHTML
 }
 
@@ -148,13 +145,14 @@ elsif ( !$query->param('button') && !$query->param('dropdown') )
     );
     print '<center>';
     my $string = $query->param('sequence');
-    if ( $string =~ /^$/ )
+    if ( $string =~ /^\s*$/ )
     {
         print <<"ENDHTML";
         <br><br<br><br><br>
         <font size='2' face='Georgia' color='330033'>
         <b>ERROR!</b> No sequence entered!<br><br>
-        Please <a href='javascript:history.go(-1)'><u>go back</u></a> and enter a sequence.
+        Please <a href='javascript:history.go(-1)'><u>go back</u></a> and enter
+        a sequence.
         </font>
 ENDHTML
         exit;
@@ -193,7 +191,8 @@ ENDHTML
                 <br><br<br><br><br><br>
                 <font size='2' face='Georgia' color='330033'>
                 <b>ERROR!</b> No sequence entered!<br><br>
-                Please <a href='javascript:history.go(-1)'><u>go back</u></a> and enter a sequence.
+                Please <a href='javascript:history.go(-1)'><u>go back</u></a>
+                and enter a sequence.
                 </font>
 ENDHTML
                 exit;
@@ -237,7 +236,8 @@ ENDHTML
         <br><br<br><br><br><br>
         <font size='2' face='Georgia' color='330033'>
         <b>ERROR!</b> No email address entered!<br><br>
-        Please <a href='javascript:history.go(-1)'><u>go back</u></a> and enter a valid email address.
+        Please <a href='javascript:history.go(-1)'><u>go back</u></a> and enter 
+        a valid email address.
         </font>
 ENDHTML
         exit;
@@ -248,7 +248,8 @@ ENDHTML
         <br><br<br><br><br><br>
         <font size='2' face='Georgia' color='330033'>
         <b>ERROR!</b> The email address does not appear to be valid!<br><br>
-        Please <a href='javascript:history.go(-1)'><u>go back</u></a> and enter a valid email address.
+        Please <a href='javascript:history.go(-1)'><u>go back</u></a> and enter 
+        a valid email address.
         </font>
 ENDHTML
         exit;
@@ -276,8 +277,8 @@ ENDHTML
     }
     alarm $timeout;
 
-    my $number_of_cpus = Sys::CPU::cpu_count();    # get the number of cpu cores
-`blastp -query $tmp -db $db -evalue 0.00000001 -num_threads $number_of_cpus -out $out`;
+    my $cpu_n = Sys::CPU::cpu_count();    # get the number of cpu cores
+`blastp -query $tmp -db $db -evalue 0.00000001 -num_threads $cpu_n -out $out`;
 
     my $blast = Bio::SearchIO->new(
         -format => 'blast',
@@ -359,7 +360,7 @@ ENDHTML
     Please select the correct organism source from the following list.
     </font><br><br>
     <form action='$0' method='POST'>
-    <p style='width: 250px; text-align:center;margin-bottom:1px;margin-top:1px'>
+    <p style='width: 270px; text-align:center;margin-bottom:1px;margin-top:1px'>
     <div-align='center'><select name='organism' tabindex='1' class='default'>
 ENDHTML
     for ( 0 .. $mikos - 1 )
@@ -411,11 +412,9 @@ elsif ($query->param('organism')
     my $email     = $query->param('email');
     my %organisms = thaw $query->param('organisms');
 
-    my $one        = $organisms{$organism};
-    my $tmp        = '../tmps/blastp/' . $prid . '.tmp';
-    my $out        = '../outs/psiblast/' . $prid . '.tmp';
-    my $seqfblast  = Bio::SeqIO->newFh( -file => $tmp, -format => 'fasta' );
-    my $seqfblast2 = <$seqfblast>;
+    my $one = $organisms{$organism};
+    my $tmp = '../tmps/blastp/' . $prid . '.tmp';
+    my $out = '../outs/psiblast/' . $prid . '.tmp';
 
     print "<!--\n";
     my $timeout;
@@ -424,8 +423,10 @@ elsif ($query->param('organism')
     }
     alarm $timeout;
 
-    my $number_of_cpus = Sys::CPU::cpu_count();    # get the number of cpu cores
-`legacy_blast.pl blastpgp -i $tmp -b 7000 -j 50 -h 0.00000001 -d $db -a $number_of_cpus -o $out`;
+    my $cpu_n = Sys::CPU::cpu_count();    # get the number of cpu cores
+    my $e_th  = '0.00000001';
+    my $psib  = 'blastpgp';
+`legacy_blast.pl $psib -i $tmp -b 7000 -j 50 -h $e_th -d $db -a $cpu_n -o $out`;
 
     open $out_fh, '<', $out;
     while ( $line = <$out_fh> )
@@ -524,8 +525,11 @@ elsif ($query->param('organism')
                                 $match_line =~ tr/- //d;
                                 $seq[$number] = ">$accession[$number] $org1\n"
                                   . $match_line . "\n";
-                                print {$results_fh}
-"<tr><td><p style='text-align:right;margin-bottom:1px;margin-top:1px'><center>$accession[$number]</center></td> <td><center>$score[$number]</center></td> <td><center>$evalue[$number]</center></td></tr>\n\n";
+                                print {$results_fh} <<"ENDHTML";
+<tr><td><p style='text-align:right;margin-bottom:1px;margin-top:1px'>
+<center>$accession[$number]</center></td> <td><center>$score[$number]</center>
+</td> <td><center>$evalue[$number]</center></td></tr>\n\n
+ENDHTML
                                 $number++;
                             }
                             $hit_old = $acnumber;
@@ -619,24 +623,29 @@ elsif ($query->param('organism')
         </font>
         <br><br>
         <table border='1'>
-        <tr bgcolor=FFFF66><th><center>Possible duplications of <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point</a>.</center></th>
+        <tr bgcolor=FFFF66><th><center>Possible duplications of
+        <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point
+        </a>.</center></th>
         <th><center>Confidence Value</center></th></tr>
 ENDHTML
 
-        $email_data .= <<'EMAIL_END';
+        $email_data .= <<"EMAIL_END";
         <center><br><font size='3' face='Georgia' color='330033'>
-        <a href=http://localhost/results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a>
+        <a href=http://localhost/results/final_alns/multalign/$prid.aln>T-Coffee
+         Alignment</a>
         </font>
         <br><br>
         <table border='1'>
-        <tr bgcolor=FFFF66><th><center>Possible duplications of <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point</a>.</center></th>
+        <tr bgcolor=FFFF66><th><center>Possible duplications of
+        <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point
+        </a>.</center></th>
         <th><center>Confidence Value</center></th></tr>
 EMAIL_END
 
         foreach my $can (@candidate)
         {
             if (   $can !~ /$starting_point/
-                && $can =~ /(\d?.?\d+e?-?\d*) (\w+)/ )
+                && $can =~ /(\d?\d?.?\d+e?-?\d*) (\w+)/ )
             {
                 if ( $tdcounter == 1 )
                 {
@@ -649,11 +658,13 @@ EMAIL_END
                     $tdcounter++;
                 }
                 print
-"<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td>";
-                printf '<td align=left><center>%15.13f</center></td></tr>', $1;
+"<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
+</center></td>";
+                printf '<td align=left><center>%15.12f</center></td></tr>', $1;
                 $email_data .=
-"<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td>"
-                  . sprintf '<td align=left><center>%15.13f</center></td></tr>',
+"<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
+</center></td>"
+                  . sprintf '<td align=left><center>%15.12f</center></td></tr>',
                   $1;
             }
         }
@@ -662,9 +673,10 @@ EMAIL_END
         <img src='../results/trees/drawn/$prid.png'><br>
         <a href=../results/trees/zips/$prid.zip>NJ Tree Produced</a>
 ENDHTML
-        $email_data .= <<'EMAIL_END';
+        $email_data .= <<"EMAIL_END";
         </table><img src='http://localhost/results/trees/drawn/$prid.png'><br>
-        <a href=http://localhost/results/trees/zips/$prid.zip>NJ Tree Produced</a>
+        <a href=http://localhost/results/trees/zips/$prid.zip>NJ Tree Produced
+        </a>
 EMAIL_END
 
     }
@@ -681,29 +693,55 @@ EMAIL_END
             <br><b>The dendrogram cannot be bootstrapped.</b></font>
             </center>
 ENDHTML
+            $email_data .= <<"EMAIL_END";
+<font size='3' face='Georgia' color='330033'><br><br>
+            <center>
+            The number of sequences for this particular organism is three.
+            <br><b>The dendrogram cannot be bootstrapped.</b></font>
+            </center>
+EMAIL_END
             tcoffee( $sequences, $fnaln, $email2 );
             `clustalw -INFILE=$fnaln -OUTFILE=$ph -tree`;
 `mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
             `rm *.dnd`;
             tree_manipulation1($ph);
             `./Pinda.R -parser $ph > /web/parsing/$prid.tmp`;
+            `./Pinda.R -lengths_1 $ph > /web/parsing/$prid\_1.tmp`;
+            `./Pinda.R -lengths_2 $ph > /web/parsing/$prid\_2.tmp`;
+
             tree_manipulation2($ph);
 
             `zip -j $zip $ph`;
             `./Pinda.R $drawntree $ph`;    #Visually draw the tree.
             `rm $ph`;
 
-            parser("../parsing/$prid.tmp");
+            parser( "../parsing/$prid.tmp", "../parsing/$prid\_1.tmp",
+                "../parsing/$prid\_2.tmp" );
             print <<"ENDHTML";
             <center><br><font size='3' face='Georgia' color='330033'>
-            <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-            <a href=../results/trees/zips/$prid.zip>NJ Tree Produced</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+            <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment
+            </a>
             </font>
             <br><br>
             <table border='1'>
-            <tr bgcolor=FFFF66><th><center>Possible duplications of <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point</a>.</center></th>
-            <th><center>Confidence Value</center></th></tr>
+            <tr bgcolor=FFFF66><th><center>Possible duplications of
+            <a href=http://www.uniprot.org/uniprot/$starting_point>
+            $starting_point</a>.</center></th>
+            <th><center>Confidence Value</center></th></tr></center>
 ENDHTML
+
+            $email_data .= <<"EMAIL_END";
+        <center><br><font size='3' face='Georgia' color='330033'>
+        <a href=http://localhost/results/final_alns/multalign/$prid.aln>T-Coffee
+         Alignment</a>
+        </font>
+        <br><br>
+        <table border='1'>
+        <tr bgcolor=FFFF66><th><center>Possible duplications of
+        <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point
+         </a>.</center></th>
+        <th><center>Confidence Value</center></th></tr>
+EMAIL_END
 
             foreach my $can (@candidate)
             {
@@ -720,13 +758,31 @@ ENDHTML
                         $tdcounter++;
                     }
                     print
-"<tr><td bgcolor=$tdbg><center><a href=http://www.uniprot.org/uniprot/$2>$2</a></center></td>";
-                    printf '<td align=left><center>%15.13f</center></td></tr>',
+"<tr><td bgcolor=$tdbg><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
+</center></td>";
+                    printf '<td align=left><center>%15.12f</center></td></tr>',
+                      $1;
+                    $email_data .=
+"<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
+</center></td>"
+                      . sprintf
+                      '<td align=left><center>%15.12f</center></td></tr>',
                       $1;
                 }
             }
             print '</table>';
-            print "<img src='../results/trees/drawn/$prid.png'>";
+            print <<"ENDHTML";
+            <center><img src='../results/trees/drawn/$prid.png'><br>
+            <a href=../results/trees/zips/$prid.zip>NJ Tree Produced</a>
+            </center>
+ENDHTML
+            $email_data .= <<"EMAIL_END";
+            </table><img src='http://localhost/results/trees/drawn/$prid.png'>
+            <br>
+            <a href=http://localhost/results/trees/zips/$prid.zip>NJ Tree
+            Produced</a>
+EMAIL_END
+
         }
         if ( $sequences_number == 2 )
         {
@@ -735,15 +791,30 @@ ENDHTML
             -->
             <center>
             <font size='3' face='Georgia' color='330033'><br><br>
-            The number of sequences for this particular organism is less than three.<br>
+            The number of sequences for this particular organism is less than
+            three.<br><br>
             <b>A dendrogram cannot be plotted.</b></font>
             </center>
 ENDHTML
+            $email_data .= <<"EMAIL_END";
+            <center>
+            <font size='3' face='Georgia' color='330033'><br><br>
+            The number of sequences for this particular organism is less than
+            three.<br><br>
+            <b>A dendrogram cannot be plotted.</b></font>
+            </center>
+EMAIL_END
             tcoffee( $sequences, $fnaln, $email );
             print <<"ENDHTML";
-                <br><font size='3' face='Georgia' color='330033'><br>
-                <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a></font>
+                <center><br><font size='3' face='Georgia' color='330033'><br>
+                <a href=../results/final_alns/multalign/$prid.aln>
+                T-Coffee Alignment</a></font></center>
 ENDHTML
+            $email_data .= <<"EMAIL_END";
+            <center><br><font size='3' face='Georgia' color='330033'><br>
+                <a href=../results/final_alns/multalign/$prid.aln>
+                T-Coffee Alignment</a></font></center>
+EMAIL_END
         }
         if ( $sequences_number == 1 )
         {
@@ -755,13 +826,19 @@ ENDHTML
             No possible duplications have been detected.</font>
             </center>
 ENDHTML
+            $email_data .= <<"EMAIL_END";
+            <center>
+            <br><font size='3' face='Georgia' color='330033'><br><br>
+            No possible duplications have been detected.</font>
+            </center>
+EMAIL_END
         }
     }
     my $end_timer = time;
     my $run_time  = $end_timer - $start_timer;
     job_timer($run_time);
 
-    #   send_email($email);
+    send_email($email);
     print "</center>\n</body>\n</html>";
 }
 
@@ -773,7 +850,7 @@ sub tcoffee    #Pretty self-explanatory.
     export TMP="/web/t-coffee/dir_4_t-coffee/tmp/" ;
     export NO_ERROR_REPORT_4_TCOFFEE='1' ;
     export NO_WARNING_4_TCOFFEE='1' ;
-    t_coffee -infile $_[0] -output=clustal,fasta_aln -outfile $_[1] -proxy -email=$_[2]`;
+t_coffee -infile $_[0] -output=clustal -outfile $_[1] -proxy -email=$_[2]`;
     return 0;
 }
 
@@ -788,8 +865,9 @@ sub tree_manipulation1
         while ( $line = <$tree_fh> )
         {
             $line =~ s/TRICHOTOMY//;    #Remove the 'TRICHOTOMY' word.
-            $line =~ s/-\d[.]\d*/0/
-              ; #Fix NJ negative branch length artifact, by setting those numbers to zero.
+            $line =~ s/-\d[.]\d*/0/;
+
+      #Fix NJ negative branch length artifact, by setting those numbers to zero.
             $tree[$yacounter] = $line;
             $yacounter++;
         }
@@ -1043,7 +1121,14 @@ sub parser
                         }
                         if ( $star_node eq $node )
                         {
-                            $node_distance -= $distanceshash{"$star_node"};
+                            if ( defined $distanceshash{"$star_node"} )
+                            {
+                                $node_distance -= $distanceshash{"$star_node"};
+                            }
+                            else
+                            {
+                                $node_distance = $distanceshash{"$star_node"};
+                            }
                             goto EXIT0;
                         }
                     }
@@ -1098,7 +1183,7 @@ sub parser
         $ginomenon     = 1;
         @compare_seq   = ();
     }
-    @candidate = sort { $a <=> $b } @candidate;
+    @candidate = sort { $a cmp $b } @candidate;
     @candidate = reverse @candidate;
     return @candidate, $starting_point;
 }

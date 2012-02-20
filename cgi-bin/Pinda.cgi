@@ -63,7 +63,7 @@ print <<"ENDHTML";
 <head>
 <title>Pinda - Pipeline for Intraspecies Duplications Analysis</title>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /> 
-<link rel="stylesheet" href="../css/Pinda.css" type="text/css">
+<link rel="stylesheet" href="../css/Pinda.css" type="text/css" media="screen">
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"
 type="text/javascript" charset="utf-8"></script>
@@ -102,17 +102,38 @@ if ( !$query->param )    #Homepage
     <i>Please enter a sequence.</i>
     </font><br>
     <form id = 'submit' method = 'post' action=$0>
-    <textarea name='sequence' rows=7 cols=55 style='font-family:courier new'>
-    </textarea></p><br>
+    <textarea name='sequence' rows=7 cols=55 style='font-family:courier new'
+    ></textarea></p><br>
     <p style='width: 470px; text-align:left;margin-bottom:1px;margin-top:1px'>
     <font size='3' face='Georgia' color='330033'><i>Please choose a database.
-    </i></font><br>
-    <center><font size='2'>
-    <input type="radio" name="db" value="Swiss-Prot" checked> <b>Swiss-Prot</b>
-    <input type="radio" name="db" value="UniProt"> <b>UniProt</b> (<i>Swiss-Prot
-     + TrEMBL</i>)
-    </font>
-    </center>
+    </i></font>
+    <div id="container">
+        <ul class="menu">
+            <li id="DNA" class="active">DNA</li>
+            <li id="Protein">Protein</li>
+        <ul>
+        <span class="clear"></span>
+        <div class="content DNA">
+            <ul>
+                <font side='2'>
+                <input type="radio" name="db" value="nt (NCBI)" checked> <b>nt
+                </b> (<i>NCBI</i>)
+                </font>
+                
+            <ul>
+        </div>
+        <div class="content Protein">
+            <ul>
+                <font size='2'>
+                <input type="radio" name="db" value="Swiss-Prot" checked> <b>Swiss-Prot</b>
+                <br>
+                <input type="radio" name="db" value="UniProt"> <b>UniProt</b> (<i>Swiss-Prot
+                + TrEMBL</i>)
+                </font>
+            <ul>
+        </div>
+    </div>
+    <script type="text/javascript" src="../js/tabs.js"></script>
     </p><br>
     <p style='width: 470px; text-align:left;margin-bottom:1px;margin-top:1px'>
     <font size='3' face='Georgia' color='330033'><i>Please enter a valid email
@@ -642,10 +663,16 @@ ENDHTML
         <th><center>Confidence Value</center></th></tr>
 EMAIL_END
 
+		my $top_can;
+		if ( $candidate[0] =~ /(\d?\d?\d?.?\d+e?-?\d*) \w+/ )
+		{
+				$top_can = $1;
+		}
+
         foreach my $can (@candidate)
         {
             if (   $can !~ /$starting_point/
-                && $can =~ /(\d?\d?.?\d+e?-?\d*) (\w+)/ )
+                && $can =~ /(\d?\d?\d?.?\d+e?-?\d*) (\w+)/ )
             {
                 if ( $tdcounter == 1 )
                 {
@@ -660,12 +687,12 @@ EMAIL_END
                 print
 "<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
 </center></td>";
-                printf '<td align=left><center>%15.12f</center></td></tr>', $1;
+                printf '<td align=left><center>%5.1f%</center></td></tr>', $1/$top_can*100;
                 $email_data .=
 "<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
 </center></td>"
-                  . sprintf '<td align=left><center>%15.12f</center></td></tr>',
-                  $1;
+                  . sprintf '<td align=left><center>%5.1f%</center></td></tr>',
+                  $1/$top_can*100;
             }
         }
         print '</table>';
@@ -743,9 +770,15 @@ ENDHTML
         <th><center>Confidence Value</center></th></tr>
 EMAIL_END
 
+			my $top_can;
+			if ( $candidate[0] =~ /(\d?\d?\d?.?\d+e?-?\d*) \w+/ )
+			{
+					$top_can = $1;
+			}
+
             foreach my $can (@candidate)
             {
-                if ( $can !~ /$starting_point/ && $can =~ /(\d?.?\d+) (\w+)/ )
+                if ( $can !~ /$starting_point/ && $can =~ /(\d?\d?\d?.?\d+e?-?\d*) (\w+)/ )
                 {
                     if ( $tdcounter == 1 )
                     {
@@ -760,14 +793,14 @@ EMAIL_END
                     print
 "<tr><td bgcolor=$tdbg><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
 </center></td>";
-                    printf '<td align=left><center>%15.12f</center></td></tr>',
-                      $1;
+                    printf '<td align=left><center>%5.1f</center></td></tr>',
+                      $1/$top_can*100;
                     $email_data .=
 "<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
 </center></td>"
                       . sprintf
-                      '<td align=left><center>%15.12f</center></td></tr>',
-                      $1;
+                      '<td align=left><center>%5.1f</center></td></tr>',
+                      $1/$top_can*100;
                 }
             }
             print '</table>';
@@ -1183,7 +1216,7 @@ sub parser
         $ginomenon     = 1;
         @compare_seq   = ();
     }
-    @candidate = sort { $a cmp $b } @candidate;
+    @candidate = sort { $a <=> $b } @candidate;
     @candidate = reverse @candidate;
     return @candidate, $starting_point;
 }

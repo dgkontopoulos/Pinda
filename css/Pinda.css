@@ -176,3 +176,79 @@
 .dk_ie6 .dk_options {
   right: 0;
 }
+.clear{
+	clear: both;
+	height: 0;
+	visibility: hidden;
+	display: block;
+}
+a{
+	text-decoration: none;
+}
+/******* MENU *******/
+#container{  
+    width: 235px;  
+}  
+#container ul{  
+    list-style: none;  
+    list-style-position: outside;
+    width: 255px;
+}  
+#container ul.menu li{  
+    float: left;  
+    margin-right: 0px;  
+}  
+#container ul.menu li{  
+    display: block;  
+    padding: 0px 8px 2px 8px;  
+    background: #efefef;  
+    margin-bottom: -2px;  
+    border: 1px solid #d0ccc9;  
+    border-width: 1px 1px 1px 1px;  
+    position: relative;  
+    color: #898989;  
+    cursor: pointer;
+    top: 0px;  
+    right: 80px;
+}  
+#container ul.menu li.active{  
+    background: #fff;  
+    top: 0px;  
+    border-bottom: 0;  
+    color: #5f95ef;  
+}
+
+  /******* /MENU *******/
+/******* CONTENT *******/
+.content{
+	margin-left: -90pt;
+	margin-right: 50pt;
+	background: #efefef;
+	background: #fff;
+	border: 1px solid #d0ccc9;
+	text-align: left;
+	padding: 2px;
+	padding-bottom: 0px;
+}
+.content h1{
+	line-height: 1em;
+	height: 1px;
+	padding: 1px 1px 1px 5px;
+}
+/******* /CONTENT *******/
+/******* DNA *******/
+.content.DNA h1{
+	background: transparent no-repeat scroll left top;
+}
+.content.DNA{
+	display: block;
+}
+/******* /DNA *******/
+/******* PROTEIN *******/
+.content.Protein h1{
+	background: transparent no-repeat scroll left top;
+}
+.content.Protein{
+	display: none;
+}
+/******* /PROTEIN *******/

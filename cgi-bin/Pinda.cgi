@@ -42,6 +42,7 @@ use CGI qw(:standard);
 use Data::Validate::Email qw(is_email);
 use FreezeThaw qw(freeze thaw);
 use List::MoreUtils qw(uniq);
+use LWP::Simple qw(get);
 use MIME::Lite;
 use Sys::CPU;
 
@@ -116,8 +117,8 @@ if ( !$query->param )    #Homepage
         <div class="content DNA">
             <ul>
                 <font side='2'>
-                <input type="radio" name="db" value="nt (NCBI)" checked> <b>nt
-                </b> (<i>NCBI</i>)
+                <input type="radio" name="db" value="nt" checked> <b>nt</b> 
+                (<i>NCBI</i>)
                 </font>
                 
             <ul>
@@ -157,12 +158,14 @@ elsif ( !$query->param('button') && !$query->param('dropdown') )
 {
     my $SWISSPROT = '../databases/Swissprot/uniprot_sprot.fasta';
     my $UNIPROT   = '../databases/UniProt/UniProt.fasta';
+    my $NT        = '../databases/nt/nt.fasta';
     my $list      = 0;
     my $list2     = 0;
 
     my (
-        $des,      $hit,    $hit_check, $input_hit, $org,
-        $organism, $tmp_fh, @input_org, @organism,  %organisms
+        $accession, $dbfetch,   $des,      $hit,
+        $hit_check, $input_hit, $org,      $organism,
+        $tmp_fh,    @input_org, @organism, %organisms
     );
     print '<center>';
     my $string = $query->param('sequence');
@@ -174,16 +177,6 @@ elsif ( !$query->param('button') && !$query->param('dropdown') )
         <b>ERROR!</b> No sequence entered!<br><br>
         Please <a href='javascript:history.go(-1)'><u>go back</u></a> and enter
         a sequence.
-        </font>
-ENDHTML
-        exit;
-    }
-    if ( $string !~ /[DEFHIKLMNPQRSVWY]/i )
-    {
-        print <<"ENDHTML";
-        <br><br<br><br><br><br>
-        <font size='2' face='Georgia' color='330033'>
-        THAT... IS... DNA!
         </font>
 ENDHTML
         exit;
@@ -218,16 +211,6 @@ ENDHTML
 ENDHTML
                 exit;
             }
-            elsif ( $' !~ /[DEFHIKLMNPQRSVWY]/i )
-            {
-                print <<"ENDHTML";
-                <br><br<br><br><br><br>
-                <font size='2' face='Georgia' color='330033'>
-                THAT... IS... DNA!
-                </font>
-ENDHTML
-                exit;
-            }
             if ( $string =~ /[|](\w{6})[|]/ )
             {
                 $hit_check = $1;
@@ -235,6 +218,28 @@ ENDHTML
                 {
                     $input_hit = $hit_check;
                 }
+            }
+        }
+        elsif ( $string =~ /ref\|(.+)\|/ )
+        {
+            $input_hit = $1;
+            $dbfetch   = get(
+                "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$1");
+            if ( $dbfetch =~ /ORGANISM\s+(\w+\s+\w+)/ )
+            {
+                $organism = $1;
+            }
+        }
+        elsif ($string =~ /gb\|(.+)\|/
+            || $string =~ /dbj\|(.+)\|/
+            || $string =~ /emb\|(.+)\|/ )
+        {
+            $input_hit = $1;
+            $dbfetch =
+              get("http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$1");
+            if ( $dbfetch =~ /OS\s+(\w+\s+\w+)/ )
+            {
+                $organism = $1;
             }
         }
 
@@ -247,6 +252,10 @@ ENDHTML
     elsif ( $db eq 'UniProt' )
     {
         $db = $UNIPROT;
+    }
+    elsif ( $db eq 'nt' )
+    {
+        $db = $NT;
     }
 
     my $email = $query->param('email');
@@ -293,13 +302,19 @@ ENDHTML
 
     print "<!--\n";
     my $timeout = 60;
-    {
-        local $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
-    }
+    $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
     alarm $timeout;
 
     my $cpu_n = Sys::CPU::cpu_count();    # get the number of cpu cores
+
+    if ( $db eq $NT )
+    {
+`blastn -query $tmp -db $db -evalue 0.00000001 -num_threads $cpu_n -out $out`;
+    }
+    else
+    {
 `blastp -query $tmp -db $db -evalue 0.00000001 -num_threads $cpu_n -out $out`;
+    }
 
     my $blast = Bio::SearchIO->new(
         -format => 'blast',
@@ -348,6 +363,52 @@ ENDHTML
                         }
                     }
                 }
+                elsif ( $hit->name =~ /ref\|(.+)\|/ )
+                {
+                    $accession = $1;
+                    $dbfetch   = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$1"
+                    );
+                    if ( $dbfetch =~ /ORGANISM\s+(\w+\s+\w+)/ )
+                    {
+                        $org = $1;
+                        $organism[$list] = $org;
+                        $list++;
+                    }
+                    if ( $org eq $organism && defined $input_hit )
+                    {
+                        $input_org[$list2] = $accession;
+                        $list2++;
+                    }
+                    if ( !( defined $organisms{$org} ) )
+                    {
+                        $organisms{$org} = $accession;
+                    }
+                }
+                elsif ($hit->name =~ /gb\|(.+)\|/
+                    || $hit->name =~ /dbj\|(.+)\|/
+                    || $hit->name =~ /emb\|(.+)\|/ )
+                {
+                    $accession = $1;
+                    $dbfetch   = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$1"
+                    );
+                    if ( $dbfetch =~ /OS\s+(\w+\s+\w+)/ )
+                    {
+                        $org = $1;
+                        $organism[$list] = $org;
+                        $list++;
+                    }
+                    if ( $org eq $organism && defined $input_hit )
+                    {
+                        $input_org[$list2] = $accession;
+                        $list2++;
+                    }
+                    if ( !( defined $organisms{$org} ) )
+                    {
+                        $organisms{$org} = $accession;
+                    }
+                }
             }
         }
     }
@@ -372,12 +433,12 @@ ENDHTML
         <font size='2' face='Georgia' color='330033'>
         <br><br<br><br><br><br>
         It seems that the organism source is <b>$organism</b>. Is this correct?
-        </font><br>
+        </font>
 ENDHTML
     }
     print <<"ENDHTML";
     <font size='2' face='Georgia' color='330033'>
-    <br><br>
+    <br><br><br><br>
     Please select the correct organism source from the following list.
     </font><br><br>
     <form action='$0' method='POST'>
@@ -439,9 +500,7 @@ elsif ($query->param('organism')
 
     print "<!--\n";
     my $timeout;
-    {
-        local $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
-    }
+    $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
     alarm $timeout;
 
     my $cpu_n = Sys::CPU::cpu_count();    # get the number of cpu cores
@@ -663,11 +722,11 @@ ENDHTML
         <th><center>Confidence Value</center></th></tr>
 EMAIL_END
 
-		my $top_can;
-		if ( $candidate[0] =~ /(\d?\d?\d?.?\d+e?-?\d*) \w+/ )
-		{
-				$top_can = $1;
-		}
+        my $top_can;
+        if ( $candidate[0] =~ /(\d?\d?\d?.?\d+e?-?\d*) \w+/ )
+        {
+            $top_can = $1;
+        }
 
         foreach my $can (@candidate)
         {
@@ -687,12 +746,13 @@ EMAIL_END
                 print
 "<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
 </center></td>";
-                printf '<td align=left><center>%5.1f%</center></td></tr>', $1/$top_can*100;
+                printf '<td align=left><center>%5.1f%</center></td></tr>',
+                  $1 / $top_can * 100;
                 $email_data .=
 "<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
 </center></td>"
                   . sprintf '<td align=left><center>%5.1f%</center></td></tr>',
-                  $1/$top_can*100;
+                  $1 / $top_can * 100;
             }
         }
         print '</table>';
@@ -770,15 +830,16 @@ ENDHTML
         <th><center>Confidence Value</center></th></tr>
 EMAIL_END
 
-			my $top_can;
-			if ( $candidate[0] =~ /(\d?\d?\d?.?\d+e?-?\d*) \w+/ )
-			{
-					$top_can = $1;
-			}
+            my $top_can;
+            if ( $candidate[0] =~ /(\d?\d?\d?.?\d+e?-?\d*) \w+/ )
+            {
+                $top_can = $1;
+            }
 
             foreach my $can (@candidate)
             {
-                if ( $can !~ /$starting_point/ && $can =~ /(\d?\d?\d?.?\d+e?-?\d*) (\w+)/ )
+                if (   $can !~ /$starting_point/
+                    && $can =~ /(\d?\d?\d?.?\d+e?-?\d*) (\w+)/ )
                 {
                     if ( $tdcounter == 1 )
                     {
@@ -794,13 +855,13 @@ EMAIL_END
 "<tr><td bgcolor=$tdbg><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
 </center></td>";
                     printf '<td align=left><center>%5.1f</center></td></tr>',
-                      $1/$top_can*100;
+                      $1 / $top_can * 100;
                     $email_data .=
 "<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
 </center></td>"
                       . sprintf
                       '<td align=left><center>%5.1f</center></td></tr>',
-                      $1/$top_can*100;
+                      $1 / $top_can * 100;
                 }
             }
             print '</table>';

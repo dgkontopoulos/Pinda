@@ -161,11 +161,12 @@ elsif ( !$query->param('button') && !$query->param('dropdown') )
     my $NT        = '../databases/nt/nt.fasta';
     my $list      = 0;
     my $list2     = 0;
+    my $number    = 0;
 
     my (
-        $accession, $dbfetch,   $des,      $hit,
-        $hit_check, $input_hit, $org,      $organism,
-        $tmp_fh,    @input_org, @organism, %organisms
+        $accession, $alns_fh,   $dbfetch,    $des,       $hit,
+        $hit_check, $input_hit, $match_line, $org,       $organism,
+        $tmp_fh,    @input_org, @organism,   %organisms, %seq
     );
     print '<center>';
     my $string = $query->param('sequence');
@@ -213,7 +214,7 @@ ENDHTML
 ENDHTML
                 exit;
             }
-            if ( $string =~ /[|](\w{6})[|]/ )
+            if ( $string =~ /[|](\w{6,})[|]/ )
             {
                 $hit_check = $1;
                 if ( $hit_check =~ /\d/ && $hit_check =~ /\D/ )
@@ -300,8 +301,8 @@ ENDHTML
 
     #Get process id and set BLAST parameters#
     my $prid = $$;
-    my $tmp  = '../tmps/blastp/' . $prid . '.tmp';
-    my $out  = '../outs/blastp/' . $prid . '.tmp';
+    my $tmp  = '../tmps/blast/' . $prid . '.tmp';
+    my $out  = '../outs/blast/' . $prid . '.tmp';
     open $tmp_fh, '>', $tmp;
     print {$tmp_fh} "$string";
     close $tmp_fh;
@@ -331,8 +332,15 @@ ENDHTML
         -file   => "$out"
     );
 
-    #Start parsing BLAST output.#
+    my $alns      = '../results/final_alns/' . $prid . '.tmp';
+    my $alignment = Bio::AlignIO->new(
+        -file   => ">>$alns",
+        -format => 'clustalw'
+    );
 
+    my $hit_old = 0;
+
+    #Start parsing BLAST output.#
     while ( my $result = $blast->next_result )
     {
         while ( my $hit = $result->next_hit )
@@ -379,19 +387,45 @@ ENDHTML
                         }
                     }
                 }
-                elsif ( $hit->name =~ /ref\|(.+)\|/ )
+                else
                 {
-                    $accession = $1;
-                    $dbfetch   = get(
-"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$1"
-                    );
-
-                    # Populate the organism dropdown list.#
-                    if ( $dbfetch =~ /ORGANISM\s+(\w+\s+\w+)/ )
+                    if ( $hit->name =~ /ref\|(.+)\|/ )
                     {
-                        $org = $1;
-                        $organism[$list] = $org;
-                        $list++;
+                        if ( $1 =~ /\.\d*/ )
+                        {
+                            $accession = $`;
+                        }
+                        $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$accession"
+                        );
+
+                        # Populate the organism dropdown list.#
+                        if ( $dbfetch =~ /ORGANISM\s+(\w+\s+\w+)/ )
+                        {
+                            $org = $1;
+                            $organism[$list] = $org;
+                            $list++;
+                        }
+                    }
+                    elsif ($hit->name =~ /gb\|(.+)\|/
+                        || $hit->name =~ /dbj\|(.+)\|/
+                        || $hit->name =~ /emb\|(.+)\|/ )
+                    {
+                        if ( $1 =~ /\.\d*/ )
+                        {
+                            $accession = $`;
+                        }
+                        $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$accession"
+                        );
+
+                        # Populate the organism dropdown list.#
+                        if ( $dbfetch =~ /OS\s+(\w+\s+\w+)/ )
+                        {
+                            $org = $1;
+                            $organism[$list] = $org;
+                            $list++;
+                        }
                     }
 
                     #Populate an array with results from defined organism.#
@@ -406,36 +440,20 @@ ENDHTML
                     {
                         $organisms{$org} = $accession;
                     }
-                }
-                elsif ($hit->name =~ /gb\|(.+)\|/
-                    || $hit->name =~ /dbj\|(.+)\|/
-                    || $hit->name =~ /emb\|(.+)\|/ )
-                {
-                    $accession = $1;
-                    $dbfetch   = get(
-"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$1"
-                    );
-
-                    # Populate the organism dropdown list.#
-                    if ( $dbfetch =~ /OS\s+(\w+\s+\w+)/ )
+                    if ( $hit_old ne $accession )
                     {
-                        $org = $1;
-                        $organism[$list] = $org;
-                        $list++;
+                        my $aln = $hsp->get_aln;
+                        $alignment->write_aln($aln);
+                        open $alns_fh, '>>', $alns;
+                        print {$alns_fh} " \n";
+                        close $alns_fh;
+                        $match_line = $hsp->hit_string();
+                        $match_line =~ tr/- //d;
+                        $seq{"$number"} =
+                          ">$accession $org" . q{ } . $match_line;
+                        $number++;
                     }
-
-                    #Populate an array with results from defined organism.#
-                    if ( $org eq $organism && defined $input_hit )
-                    {
-                        $input_org[$list2] = $accession;
-                        $list2++;
-                    }
-
-                    #Populate a hash with the first result from every organism.#
-                    if ( !( defined $organisms{$org} ) )
-                    {
-                        $organisms{$org} = $accession;
-                    }
+                    $hit_old = $accession;
                 }
             }
         }
@@ -484,6 +502,16 @@ ENDHTML
     <input type=hidden name='db' value='$db'>
     <input type=hidden name='email' value='$email'>
     <input type=hidden name='organisms' value='$orghash'>
+ENDHTML
+    if ( $db eq $NT )
+    {
+        my $seqhash = freeze %seq;
+        print <<"ENDHTML";
+    <input type=hidden name='seq' value='$seqhash'>
+    <input type=hidden name='number' value='$number'>
+ENDHTML
+    }
+    print <<"ENDHTML";
     </select></div><input type=submit name='dropdown' value='OK'>
     </form>
     </p>
@@ -503,7 +531,7 @@ elsif ($query->param('organism')
     && $query->param('db')
     && $query->param('email') )
 {
-    my $alncounter       = 0;
+    my $seq2counter      = 0;
     my $hit_old          = 0;
     my $iteration_number = 0;
     my $resnum           = 0;
@@ -512,10 +540,11 @@ elsif ($query->param('organism')
     my $tdcounter        = 0;
 
     my (
-        $acnumber,   $alignment,    $alns_fh,    $des,       $hit,
-        $i,          $line,         $match_line, $org1,      $out_fh,
-        $results_fh, $sequences_fh, $tdbg,       @accession, @alignments,
-        @evalue,     @reslines,     @score,      @seq,       @seq2
+        $acnumber, $alignment, $alns_fh,    $dbfetch,    $des,
+        $hit,      $i,         $line,       $match_line, $number,
+        $org1,     $out,       $out_fh,     $sequence,   $sequences_fh,
+        $tdbg,     @accession, @sequences2, @reslines,   @seq,
+        @seq2,     %seq
     );
     my $start_timer = time;
 
@@ -524,12 +553,30 @@ elsif ($query->param('organism')
     my $db       = $query->param('db');
     my $email    = $query->param('email');
 
+    if ( defined $query->param('seq') && defined $query->param('number') )
+    {
+        %seq    = thaw $query->param('seq');
+        $number = $query->param('number');
+        for ( 0 .. $number - 1 )
+        {
+            my $temp = $seq{$_} . "\n\n";
+            if ( $temp =~ /(\s\w+\s\w+\s)/ )
+            {
+                $temp = $` . $1 . "\n" . $';
+            }
+            $seq[$_] = $temp;
+        }
+    }
+
     #Retrieve the hash from before.#
     my %organisms = thaw $query->param('organisms');
 
     my $one = $organisms{$organism};
-    my $tmp = '../tmps/blastp/' . $prid . '.tmp';
-    my $out = '../outs/psiblast/' . $prid . '.tmp';
+    if ( $one =~ /(\w+)\.\d*/ )
+    {
+        $one = $1;
+    }
+    my $tmp = '../tmps/blast/' . $prid . '.tmp';
 
     print "<!--\n";
     my $timeout = 60;    #Avoiding browser timeout.
@@ -538,139 +585,127 @@ elsif ($query->param('organism')
 
     my $cpu_n = Sys::CPU::cpu_count();    #Get the number of cpu cores.
     my $e_th  = '0.00000001';             #E-value
-    my $psib  = 'blastpgp';               #Blast Algorithm.
+    if ( $db !~ /nt\.fasta/ )
+    {
+        $out = '../outs/psiblast/' . $prid . '.tmp';
+        my $psib = 'blastpgp';            #Blast Algorithm.
 
     #Run the BLAST+ executable through the compatibility layer of the old BLAST
     #programs, so as to keep the maximum iterations option that, at first sight,
     #is missing from the BLAST+ ones.
 `legacy_blast.pl $psib -i $tmp -b 7000 -j 50 -h $e_th -d $db -a $cpu_n -o $out`;
 
-    #Shorten the PSI-BLAST output file. We only need the last iteration.#
-    open $out_fh, '<', $out;
-    while ( $line = <$out_fh> )
-    {
-        if ( $line =~ /Results from round (\d+)/ )
+        #Shorten the PSI-BLAST output file. We only need the last iteration.#
+        open $out_fh, '<', $out;
+        while ( $line = <$out_fh> )
         {
-            $resnum = $1;
-        }
-    }
-    close $out_fh;
-    open $out_fh, '<', $out;
-    while ( $line = <$out_fh> )
-    {
-        if ( $line =~ /Results from round $resnum/ )
-        {
-            while ( $line = <$out_fh> )
+            if ( $line =~ /Results from round (\d+)/ )
             {
-                $reslines[$resnum2] = $line;
-                $resnum2++;
+                $resnum = $1;
             }
         }
-    }
-    close $out_fh;
-    open $out_fh, '>', $out;
-    foreach my $line (@reslines)
-    {
-        print {$out_fh} $line;
-    }
-    close $out_fh;
-
-    my $blast = Bio::SearchIO->new(
-        -format => 'blast',
-        -file   => "$out"
-    );
-
-    my $alns      = '../results/final_alns/' . $prid . '.tmp';
-    my $results   = '../results/final_results/' . $prid . '.tmp';
-    my $sequences = '../seq/final_seq/' . $prid . '.tmp';
-
-    $alignment = Bio::AlignIO->new(
-        -file   => ">>$alns",
-        -format => 'clustalw'
-    );
-
-    #Start parsing PSI-BLAST output.#
-
-    while ( my $result = $blast->next_result )
-    {
-        while ( my $it = $result->next_iteration )
+        close $out_fh;
+        open $out_fh, '<', $out;
+        while ( $line = <$out_fh> )
         {
-            $i = 1000.0;
-            my $number = 1;
-            while (( $hit = $it->next_hit_new )
-                || ( $hit = $it->next_hit_old ) )
+            if ( $line =~ /Results from round $resnum/ )
             {
-                while ( my $hsp = $hit->next_hsp )
+                while ( $line = <$out_fh> )
                 {
-                    if ( ( $it->number ) > $iteration_number )
+                    $reslines[$resnum2] = $line;
+                    $resnum2++;
+                }
+            }
+        }
+        close $out_fh;
+        open $out_fh, '>', $out;
+        foreach my $line (@reslines)
+        {
+            print {$out_fh} $line;
+        }
+        close $out_fh;
+
+        my $blast = Bio::SearchIO->new(
+            -format => 'blast',
+            -file   => "$out"
+        );
+
+        my $alns = '../results/final_alns/' . $prid . '.tmp';
+
+        #Start parsing PSI-BLAST output.#
+        while ( my $result = $blast->next_result )
+        {
+            while ( my $it = $result->next_iteration )
+            {
+                $i = 1000.0;
+                my $number = 0;
+                while (( $hit = $it->next_hit_new )
+                    || ( $hit = $it->next_hit_old ) )
+                {
+                    while ( my $hsp = $hit->next_hsp )
                     {
-                        open $results_fh, '>', $results;
-                        print {$results_fh} "\n";
-                        open $alns_fh, '>', $alns;
-                        print {$alns_fh} " \n";
-                        close $alns_fh;
-                        $iteration_number = $it->number;
-                    }
-                    if ( $hit->description =~ /(OS\=\w+)\s+(\w+)/ )
-                    {
-                        $des = $1 . q{ } . $2 . $';
-                        if ( $des =~ /OS\=(\w+)\s+(\w+)/ )
+                        if ( ( $it->number ) > $iteration_number )
                         {
-                            $org1 = $1 . q{ } . $2;
+                            $iteration_number = $it->number;
                         }
-                        if ( $org1 eq $organism )
+                        if ( $hit->description =~ /(OS\=\w+)\s+(\w+)/ )
                         {
-                            if ( $hit->accession =~ /tr[|](\w+)[|]/ )
+                            $des = $1 . q{ } . $2 . $';
+                            if ( $des =~ /OS\=(\w+)\s+(\w+)/ )
                             {
-                                $accession[$number] = $1;
-                                $acnumber = $accession[$number];
+                                $org1 = $1 . q{ } . $2;
                             }
-                            else
+                            if ( $org1 eq $organism )
                             {
-                                $accession[$number] = $hit->accession;
-                                $acnumber = $accession[$number];
+                                if ( $hit->accession =~ /tr[|](\w+)[|]/ )
+                                {
+                                    $accession[$number] = $1;
+                                    $acnumber = $accession[$number];
+                                }
+                                else
+                                {
+                                    $accession[$number] = $hit->accession;
+                                    $acnumber = $accession[$number];
+                                }
+                                if ( $hit_old ne $acnumber )
+                                {
+                                    $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=uniprotkb&id=$acnumber&format=fasta&style=raw"
+                                    );
+                                    if ( $dbfetch =~ /\n/ )
+                                    {
+                                        $match_line = $';
+                                    }
+                                    $seq[$number] =
+                                      ">$accession[$number] $org1\n"
+                                      . $match_line . "\n";
+                                    $number++;
+                                }
+                                $hit_old = $acnumber;
                             }
-                            if ( $hit_old ne $acnumber )
-                            {
-                                $score[$number]  = $hit->score;
-                                $evalue[$number] = $hit->significance;
-                                my $aln = $hsp->get_aln;
-                                $alignment->write_aln($aln);
-                                open $alns_fh, '>>', $alns;
-                                print {$alns_fh} " \n";
-                                close $alns_fh;
-                                $match_line = $hsp->hit_string() . "\n";
-                                $match_line =~ tr/- //d;
-                                $seq[$number] = ">$accession[$number] $org1\n"
-                                  . $match_line . "\n";
-                                print {$results_fh} <<"ENDHTML";
-<tr><td><p style='text-align:right;margin-bottom:1px;margin-top:1px'>
-<center>$accession[$number]</center></td> <td><center>$score[$number]</center>
-</td> <td><center>$evalue[$number]</center></td></tr>\n\n
-ENDHTML
-                                $number++;
-                            }
-                            $hit_old = $acnumber;
                         }
                     }
                 }
             }
         }
     }
-    close $results_fh;
 
     #Append sequences to file.#
     @seq2 = uniq(@seq);
+    my $sequences = '../seq/final_seq/' . $prid . '.tmp';
     open $sequences_fh, '>', $sequences;
     foreach my $sequence (@seq2)
     {
         if ( $sequence =~ /$organism/ )
         {
+            if ( $sequence =~ /(\w+)\.d*/ )
+            {
+                $sequence = $` . $1 . $';
+            }
             print {$sequences_fh} $sequence;
         }
     }
     close $sequences_fh;
-
     open $sequences_fh, '<', $sequences;
     my $line2;
     {
@@ -678,16 +713,16 @@ ENDHTML
         while ( $line2 = <$sequences_fh> )
         {
             $line2 =~ s/$one/***$one***/;    #Add stars (***) to the input seq.
-            $alignments[$alncounter] = $line2;
-            $alncounter++;
+            $sequences2[$seq2counter] = $line2;
+            $seq2counter++;
         }
     }
     close $sequences_fh;
 
     open $sequences_fh, '>', $sequences;
-    foreach my $alncounter (@alignments)
+    foreach my $seq2counter (@sequences2)
     {
-        print {$sequences_fh} $alncounter;
+        print {$sequences_fh} $seq2counter;
     }
     close $sequences_fh;
 
@@ -742,11 +777,7 @@ ENDHTML
         <br><br>
         <table border='1'>
         <tr bgcolor=FFFF66><th><center>Possible duplications of
-        <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point
-        </a>.</center></th>
-        <th><center>Confidence Value</center></th></tr>
 ENDHTML
-
         $email_data .= <<"EMAIL_END";
         <center><br><font size='3' face='Georgia' color='330033'>
         <a href=http://localhost/results/final_alns/multalign/$prid.aln>T-Coffee
@@ -755,10 +786,49 @@ ENDHTML
         <br><br>
         <table border='1'>
         <tr bgcolor=FFFF66><th><center>Possible duplications of
-        <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point
-        </a>.</center></th>
-        <th><center>Confidence Value</center></th></tr>
 EMAIL_END
+        if ( $db !~ /nt\.fasta/ )
+        {
+            print <<"ENDHTML";
+            <a href=http://www.uniprot.org/uniprot/$one>
+            $one</a>.</center></th>
+            <th><center>Confidence Value</center></th></tr>
+ENDHTML
+            $email_data .= <<"EMAIL_END";
+            <a href=http://www.uniprot.org/uniprot/$one>
+            $one</a>.</center></th>
+            <th><center>Confidence Value</center></th></tr>
+EMAIL_END
+        }
+        else
+        {
+            if ( $one =~ /^\D{2}\_/ )
+            {
+                print <<"ENDHTML";
+                <a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$one&style=raw>
+                $one</a>.</center></th>
+                <th><center>Confidence Value</center></th></tr>
+ENDHTML
+                $email_data .= <<"EMAIL_END";
+                <a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$one&style=raw>
+                $one</a>.</center></th>
+                <th><center>Confidence Value</center></th></tr>
+EMAIL_END
+            }
+            else
+            {
+                print <<"ENDHTML";
+                <a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$one&style=raw>
+                $one</a>.</center></th>
+                <th><center>Confidence Value</center></th></tr>
+ENDHTML
+                $email_data .= <<"EMAIL_END";
+                <a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$one&style=raw>
+                $one</a>.</center></th>
+                <th><center>Confidence Value</center></th></tr>
+EMAIL_END
+            }
+        }
 
         #Table of Confidence Value.#
         my $top_can;
@@ -774,6 +844,8 @@ EMAIL_END
                 && $can =~ /(\d?\d?\d?.?\d+e?-?\d*) (\w+)/
               )                              #All the rest.
             {
+                my $conf_temp = $1;
+                my $uni_temp  = $2;
                 if ( $tdcounter == 1 )       #Color the html table alternately.
                 {
                     $tdbg      = 'F8FBFE';
@@ -784,16 +856,42 @@ EMAIL_END
                     $tdbg = 'EAF1FB';
                     $tdcounter++;
                 }
-                print
+                if ( $db !~ /nt\.fasta/ )
+                {
+                    print
 "<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
 </center></td>";
-                printf '<td align=left><center>%5.1f%%</center></td></tr>',
-                  $1 / $top_can * 100;
-                $email_data .=
+                    $email_data .=
 "<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
-</center></td>"
-                  . sprintf '<td align=left><center>%5.1f%%</center></td></tr>',
-                  $1 / $top_can * 100;
+</center></td>";
+                }
+                else
+                {
+                    if ( $uni_temp =~ /^\D{2}\_/ )
+                    {
+                        print
+"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>";
+                        $email_data .=
+"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>";
+                    }
+                    else
+                    {
+                        print
+"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>";
+                        $email_data .=
+"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>";
+                    }
+                }
+                printf '<td align=left><center>%5.1f%%</center></td></tr>',
+                  $conf_temp / $top_can * 100;
+
+                $email_data .=
+                  sprintf '<td align=left><center>%5.1f%%</center></td></tr>',
+                  $conf_temp / $top_can * 100;
             }
         }
         print '</table>';
@@ -856,23 +954,58 @@ EMAIL_END
             <br><br>
             <table border='1'>
             <tr bgcolor=FFFF66><th><center>Possible duplications of
-            <a href=http://www.uniprot.org/uniprot/$starting_point>
-            $starting_point</a>.</center></th>
-            <th><center>Confidence Value</center></th></tr></center>
 ENDHTML
-
             $email_data .= <<"EMAIL_END";
-        <center><br><font size='3' face='Georgia' color='330033'>
-        <a href=http://localhost/results/final_alns/multalign/$prid.aln>T-Coffee
-         Alignment</a>
-        </font>
-        <br><br>
-        <table border='1'>
-        <tr bgcolor=FFFF66><th><center>Possible duplications of
-        <a href=http://www.uniprot.org/uniprot/$starting_point>$starting_point
-         </a>.</center></th>
-        <th><center>Confidence Value</center></th></tr>
+            <center><br><font size='3' face='Georgia' color='330033'>
+            <a href=http://localhost/results/final_alns/multalign/$prid.aln>T-Coffee
+            Alignment</a>
+            </font>
+            <br><br>
+            <table border='1'>
+            <tr bgcolor=FFFF66><th><center>Possible duplications of
 EMAIL_END
+            if ( $db !~ /nt\.fasta/ )
+            {
+                print <<"ENDHTML";
+                <a href=http://www.uniprot.org/uniprot/$one>
+                $one</a>.</center></th>
+                <th><center>Confidence Value</center></th></tr>
+ENDHTML
+                $email_data .= <<"EMAIL_END";
+                <a href=http://www.uniprot.org/uniprot/$one>
+                $one</a>.</center></th>
+                <th><center>Confidence Value</center></th></tr>
+EMAIL_END
+            }
+            else
+            {
+                if ( $one =~ /^\D{2}\_/ )
+                {
+                    print <<"ENDHTML";
+                    <a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$one&style=raw>
+                    $one</a>.</center></th>
+                    <th><center>Confidence Value</center></th></tr>
+ENDHTML
+                    $email_data .= <<"EMAIL_END";
+                    <a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$one&style=raw>
+                    $one</a>.</center></th>
+                    <th><center>Confidence Value</center></th></tr>
+EMAIL_END
+                }
+                else
+                {
+                    print <<"ENDHTML";
+                    <a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$one&style=raw>
+                    $one</a>.</center></th>
+                    <th><center>Confidence Value</center></th></tr>
+ENDHTML
+                    $email_data .= <<"EMAIL_END";
+                    <a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$one&style=raw>
+                    $one</a>.</center></th>
+                    <th><center>Confidence Value</center></th></tr>
+EMAIL_END
+                }
+            }
 
             my $top_can;
             if ( $candidate[0] =~ /(\d?\d?\d?.?\d+e?-?\d*) \w+/ )    #Input seq.
@@ -898,7 +1031,7 @@ EMAIL_END
                         $tdcounter++;
                     }
                     print
-"<tr><td bgcolor=$tdbg><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
+"<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
 </center></td>";
                     printf '<td align=left><center>%5.1f%%</center></td></tr>',
                       $1 / $top_can * 100;
@@ -1087,21 +1220,21 @@ sub parser    #Parsing.#
         #Get all the sequences.#
         while ( $line = <$tree_for_parsingfh> )
         {
-            if ( $line =~ /\_\_\_(\w+)\_\_\_/ )    #Input sequence.
+            if ( $line =~ /\s"(\w\_\_\_\w+\_\_\_)"/ )    #Input sequence.
             {
                 $starting_point = $1;
                 $uni_ids[$unicounter] = $1;
                 $unicounter++;
             }
-            if ( $line =~ /"(\w{6})"/ )            #Other sequences.
+            if ( $line =~ /"(\w{6,})"/ )                 #Other sequences.
             {
-                if ( $1 !~ /_/ )
+                if ( $1 !~ /\D\d{1,4}\_/ )
                 {
                     $uni_ids[$unicounter] = $1;
                     $unicounter++;
                 }
             }
-            if ( $' =~ /"(\w{6})"/ && $1 !~ /_/ )    #Other sequences.
+            if ( $' =~ /"(\w{6,})"/ && $1 !~ /\D\d{1,4}\_/ )   #Other sequences.
             {
                 $uni_ids[$unicounter] = $1;
                 $unicounter++;
@@ -1110,7 +1243,6 @@ sub parser    #Parsing.#
             $linocounter++;
         }
     }
-    close $tree_for_parsingfh;
 
     open $tree_node_distancesfh, '<', $_[1];    #Distance parser between nodes.
     my $neoline;
@@ -1163,7 +1295,7 @@ sub parser    #Parsing.#
               KEEP_ON_PARSING:
                 if ( $neoline2 !~ /[.]/ )    #This line contains sequence names.
                 {
-                    if ( $neoline2 =~ /\_?\_?\_?(\w{6})\_?\_?\_?\s/ )
+                    if ( $neoline2 =~ /\_?\_?\_?(\w{6,})\_?\_?\_?\s/ )
                     {
                         $parsed_linesnew[$plcn][$plcn2] = $1;
                         $plcn2++;
@@ -1236,10 +1368,11 @@ sub parser    #Parsing.#
                 foreach my $line (@parsing_lines)
                 {
                   LOOP:
-                    if ( $line =~ /$search_id"/ )     
+                    if ( $line =~ /$search_id"/ )
                     {
+
                         #Get the node's node...#
-                        if ( $line =~ /parts\$(\w)(\w+)/ ) 
+                        if ( $line =~ /parts\$(\w)(\w+)/ )
                         {
                             $compare_seq[$sscounter] = $1 . $2;
                             $search_id = $1 . $2;

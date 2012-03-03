@@ -46,7 +46,6 @@ use LWP::Simple qw(get);
 use MIME::Lite;
 use Sys::CPU;
 
-use autodie;
 use strict;
 use warnings;
 
@@ -478,14 +477,14 @@ ENDHTML
         print <<"ENDHTML";
         <font size='2' face='Georgia' color='330033'>
         <br><br<br><br><br><br>
-        It seems that the organism source is <b>$organism</b>. Is this correct?
+        It seems that the source organism is <b>$organism</b>. Is this correct?
         </font>
 ENDHTML
     }
     print <<"ENDHTML";
     <font size='2' face='Georgia' color='330033'>
     <br><br><br><br>
-    Please select the correct organism source from the following list.
+    Please select the correct source organism from the following list.
     </font><br><br>
     <form action='$0' method='POST'>
     <p style='width: 270px; text-align:center;margin-bottom:1px;margin-top:1px'>
@@ -1487,8 +1486,9 @@ sub parser    #Parsing.#
         $ginomenon     = 1;
         @compare_seq   = ();
     }
-    @candidate = sort { $a <=> $b } @candidate;    #Sort numerically.#
-    @candidate = reverse @candidate;               #Reverse the array.#
+    @candidate = map join( ' ', @$_ ), sort { $a->[0] <=> $b->[0] } map [split],
+      @candidate;
+    @candidate = reverse @candidate;    #Reverse the array.#
     return @candidate, $starting_point;
 }
 

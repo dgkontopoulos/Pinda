@@ -49,9 +49,9 @@ use Sys::CPU;
 use strict;
 use warnings;
 
-our ( $starting_point, @candidate );
+my ( $starting_point, @candidate );
 
-open STDERR, '>', '/dev/null';
+open STDERR, '>', '/dev/null' or die $!;
 
 my $query = CGI->new;    #Start the CGI environment.
 print $query->header;
@@ -222,7 +222,7 @@ ENDHTML
                 }
             }
         }
-        elsif ( $string =~ /ref\|(.+)\|/ )    #For DNA from Refseq
+        elsif ( $string =~ /ref[|](.+)[|]/ )    #For DNA from Refseq
         {
             $input_hit = $1;
             $dbfetch   = get(
@@ -233,9 +233,9 @@ ENDHTML
             }
         }
         elsif (
-            $string    =~ /gb\|(.+)\|/        #For DNA from Genbank/EMBL/DBJ
-            || $string =~ /dbj\|(.+)\|/ 
-            || $string =~ /emb\|(.+)\|/
+            $string    =~ /gb[|](.+)[|]/        #For DNA from Genbank/EMBL/DBJ
+            || $string =~ /dbj[|](.+)[|]/
+            || $string =~ /emb[|](.+)[|]/
           )
         {
             $input_hit = $1;
@@ -246,7 +246,6 @@ ENDHTML
                 $organism = $1;
             }
         }
-
     }
 
     # Database selection #
@@ -302,9 +301,9 @@ ENDHTML
     my $prid = $$;
     my $tmp  = '../tmps/blast/' . $prid . '.tmp';
     my $out  = '../outs/blast/' . $prid . '.tmp';
-    open $tmp_fh, '>', $tmp;
+    open $tmp_fh, '>', $tmp or die $!;
     print {$tmp_fh} "$string";
-    close $tmp_fh;
+    close $tmp_fh or die $!;
 
     print "<!--\n";
     my $timeout = 60;    #Avoiding browser timeout.
@@ -317,13 +316,19 @@ ENDHTML
     {
 
         #BLASTN for DNA.#
-`blastn -query $tmp -db $db -evalue 0.00000001 -num_threads $cpu_n -out $out`;
+        system(
+"blastn -query $tmp -db $db -evalue 0.00000001 -num_threads $cpu_n -out $out"
+          ) == 0
+          or die $?;
     }
     else
     {
 
         #BLASTP for Proteins.#
-`blastp -query $tmp -db $db -evalue 0.00000001 -num_threads $cpu_n -out $out`;
+        system(
+"blastp -query $tmp -db $db -evalue 0.00000001 -num_threads $cpu_n -out $out"
+          ) == 0
+          or die $?;
     }
 
     my $blast = Bio::SearchIO->new(
@@ -359,7 +364,9 @@ ENDHTML
                         $list++;
 
                         #Populate an array with results from defined organism.#
-                        if ( $org eq $organism && defined $input_hit )
+                        if (   defined $organism
+                            && $org eq $organism
+                            && defined $input_hit )
                         {
                             if ( $hit->accession =~ /tr[|](\w+)[|]/ )
                             {
@@ -388,9 +395,9 @@ ENDHTML
                 }
                 else
                 {
-                    if ( $hit->name =~ /ref\|(.+)\|/ )
+                    if ( $hit->name =~ /ref[|](.+)[|]/ )
                     {
-                        if ( $1 =~ /\.\d*/ )
+                        if ( $1 =~ /[.]\d*/ )
                         {
                             $accession = $`;
                         }
@@ -406,11 +413,11 @@ ENDHTML
                             $list++;
                         }
                     }
-                    elsif ($hit->name =~ /gb\|(.+)\|/
-                        || $hit->name =~ /dbj\|(.+)\|/
-                        || $hit->name =~ /emb\|(.+)\|/ )
+                    elsif ($hit->name =~ /gb[|](.+)[|]/
+                        || $hit->name =~ /dbj[|](.+)[|]/
+                        || $hit->name =~ /emb[|](.+)[|]/ )
                     {
-                        if ( $1 =~ /\.\d*/ )
+                        if ( $1 =~ /[.]\d*/ )
                         {
                             $accession = $`;
                         }
@@ -443,9 +450,9 @@ ENDHTML
                     {
                         my $aln = $hsp->get_aln;
                         $alignment->write_aln($aln);
-                        open $alns_fh, '>>', $alns;
+                        open $alns_fh, '>>', $alns or die $!;
                         print {$alns_fh} " \n";
-                        close $alns_fh;
+                        close $alns_fh or die $!;
                         $match_line = $hsp->hit_string();
                         $match_line =~ tr/- //d;
                         $seq{"$number"} =
@@ -571,7 +578,7 @@ elsif ($query->param('organism')
     my %organisms = thaw $query->param('organisms');
 
     my $one = $organisms{$organism};
-    if ( $one =~ /(\w+)\.\d*/ )
+    if ( $one =~ /(\w+)[.]\d*/ )
     {
         $one = $1;
     }
@@ -584,7 +591,7 @@ elsif ($query->param('organism')
 
     my $cpu_n = Sys::CPU::cpu_count();    #Get the number of cpu cores.
     my $e_th  = '0.00000001';             #E-value
-    if ( $db !~ /nt\.fasta/ )
+    if ( $db !~ /nt[.]fasta/ )
     {
         $out = '../outs/psiblast/' . $prid . '.tmp';
         my $psib = 'blastpgp';            #Blast Algorithm.
@@ -592,10 +599,13 @@ elsif ($query->param('organism')
     #Run the BLAST+ executable through the compatibility layer of the old BLAST
     #programs, so as to keep the maximum iterations option that, at first sight,
     #is missing from the BLAST+ ones.
-`legacy_blast.pl $psib -i $tmp -b 7000 -j 50 -h $e_th -d $db -a $cpu_n -o $out`;
+        system(
+"legacy_blast.pl $psib -i $tmp -b 7000 -j 50 -h $e_th -d $db -a $cpu_n -o $out"
+          ) == 0
+          or die $?;
 
         #Shorten the PSI-BLAST output file. We only need the last iteration.#
-        open $out_fh, '<', $out;
+        open $out_fh, '<', $out or die $!;
         while ( $line = <$out_fh> )
         {
             if ( $line =~ /Results from round (\d+)/ )
@@ -603,8 +613,8 @@ elsif ($query->param('organism')
                 $resnum = $1;
             }
         }
-        close $out_fh;
-        open $out_fh, '<', $out;
+        close $out_fh or die $!;
+        open $out_fh, '<', $out or die $!;
         while ( $line = <$out_fh> )
         {
             if ( $line =~ /Results from round $resnum/ )
@@ -616,13 +626,13 @@ elsif ($query->param('organism')
                 }
             }
         }
-        close $out_fh;
-        open $out_fh, '>', $out;
+        close $out_fh or die $!;
+        open $out_fh, '>', $out or die $!;
         foreach my $line (@reslines)
         {
             print {$out_fh} $line;
         }
-        close $out_fh;
+        close $out_fh or die $!;
 
         my $blast = Bio::SearchIO->new(
             -format => 'blast',
@@ -692,20 +702,20 @@ elsif ($query->param('organism')
     #Append sequences to file.#
     @seq2 = uniq(@seq);
     my $sequences = '../seq/final_seq/' . $prid . '.tmp';
-    open $sequences_fh, '>', $sequences;
+    open $sequences_fh, '>', $sequences or die $!;
     foreach my $sequence (@seq2)
     {
         if ( $sequence =~ /$organism/ )
         {
-            if ( $sequence =~ /(\w+)\.d*/ )
+            if ( $sequence =~ /(\w+)[.]d*/ )
             {
                 $sequence = $` . $1 . $';
             }
             print {$sequences_fh} $sequence;
         }
     }
-    close $sequences_fh;
-    open $sequences_fh, '<', $sequences;
+    close $sequences_fh or die $!;
+    open $sequences_fh, '<', $sequences or die $!;
     my $line2;
     {
         local $/ = "\n";
@@ -716,14 +726,14 @@ elsif ($query->param('organism')
             $seq2counter++;
         }
     }
-    close $sequences_fh;
+    close $sequences_fh or die $!;
 
-    open $sequences_fh, '>', $sequences;
+    open $sequences_fh, '>', $sequences or die $!;
     foreach my $seq2counter (@sequences2)
     {
         print {$sequences_fh} $seq2counter;
     }
-    close $sequences_fh;
+    close $sequences_fh or die $!;
 
     my $fnaln     = '/web/results/final_alns/multalign/' . $prid . '.aln';
     my $ph        = '/web/results/trees/phs/' . $prid . '.ph';
@@ -731,7 +741,7 @@ elsif ($query->param('organism')
     my $drawntree = '/web/results/trees/drawn/' . $prid . '.png';
     my $zip       = '/web/results/trees/zips/' . $prid . '.zip';
 
-    open $sequences_fh, '<', $sequences;
+    open $sequences_fh, '<', $sequences or die $!;
     my $line3;
     {
         local $/ = "\n\n";
@@ -740,9 +750,8 @@ elsif ($query->param('organism')
             $sequences_number++;
         }
     }
-    close $sequences_fh;
+    close $sequences_fh or die $!;
 
-    alarm 0;
     my $email2 = $email;
     $email2 =~ s/([\@])/\\$1/;
     if ( $sequences_number > 3 )
@@ -750,19 +759,30 @@ elsif ($query->param('organism')
 
         #Alignment, NJ tree plotting, bootstrapping and parsing.#
         tcoffee( $sequences, $fnaln, $email2 );
-        `clustalw -INFILE=$fnaln -OUTFILE=$ph -tree`;
-`clustalw -INFILE=$fnaln -OUTFILE=$phb -bootstrap=1000 -bootlabels=node`;
-        `rm *.dnd`;
-        `mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
-`mv /web/results/final_alns/multalign/$prid.phb /web/results/trees/phbs/`;
+        system("clustalw -INFILE=$fnaln -OUTFILE=$ph -tree") == 0 or die $?;
+        system(
+"clustalw -INFILE=$fnaln -OUTFILE=$phb -bootstrap=1000 -bootlabels=node"
+          ) == 0
+          or die $?;
+        system("rm *.dnd") == 0 or die $?;
+        rename "../results/final_alns/multalign/$prid.ph",
+          "../results/trees/phs/$prid.ph"
+          or die $!;
+        rename "../results/final_alns/multalign/$prid.phb",
+          "../results/trees/phbs/$prid.phb"
+          or die $!;
         tree_manipulation1($phb);
-        `./Pinda.R -parser $phb > /web/parsing/$prid.tmp`;         #Parse.
-        `./Pinda.R -lengths_1 $phb > /web/parsing/$prid\_1.tmp`;   #Parse.
-        `./Pinda.R -lengths_2 $phb > /web/parsing/$prid\_2.tmp`;   #Parse again.
+        system("./Pinda.R -parser $phb > /web/parsing/$prid.tmp") == 0
+          or die $?;    #Parse.
+        system("./Pinda.R -lengths_1 $phb > /web/parsing/$prid\_1.tmp") == 0
+          or die $?;    #Parse.
+        system("./Pinda.R -lengths_2 $phb > /web/parsing/$prid\_2.tmp") == 0
+          or die $?;    #Parse again.
         tree_manipulation2($phb);
-        `zip -j $zip $ph $phb`;
-        `./Pinda.R $drawntree $phb`;    #Visually draw the tree.
-        `rm $ph $phb`;
+        system("zip -j $zip $ph $phb") == 0 or die $?;
+        system("./Pinda.R $drawntree $phb") == 0
+          or die $?;    #Visually draw the tree.
+        system("rm $ph $phb") == 0 or die $?;
 
         alarm 0;
 
@@ -786,7 +806,7 @@ ENDHTML
         <table border='1'>
         <tr bgcolor=FFFF66><th><center>Possible duplications of
 EMAIL_END
-        if ( $db !~ /nt\.fasta/ )
+        if ( $db !~ /nt[.]fasta/ )
         {
             print <<"ENDHTML";
             <a href=http://www.uniprot.org/uniprot/$one>
@@ -855,7 +875,7 @@ EMAIL_END
                     $tdbg = 'EAF1FB';
                     $tdcounter++;
                 }
-                if ( $db !~ /nt\.fasta/ )
+                if ( $db !~ /nt[.]fasta/ )
                 {
                     print
 "<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
@@ -928,20 +948,25 @@ EMAIL_END
 
             #Alignment, NJ tree plotting and parsing.#
             tcoffee( $sequences, $fnaln, $email2 );
-            `clustalw -INFILE=$fnaln -OUTFILE=$ph -tree`;
-`mv /web/results/final_alns/multalign/$prid.ph /web/results/trees/phs/`;
-            `rm *.dnd`;
+            system("clustalw -INFILE=$fnaln -OUTFILE=$ph -tree") == 0 or die $?;
+            rename "../results/final_alns/multalign/$prid.ph",
+              "../results/trees/phs/$prid.ph"
+              or die $!;
+            system("rm *.dnd") == 0 or die $?;
             tree_manipulation1($ph);
-            `./Pinda.R -parser $ph > /web/parsing/$prid.tmp`;          #Parse.
-            `./Pinda.R -lengths_1 $ph > /web/parsing/$prid\_1.tmp`;    #Parse.
-            `./Pinda.R -lengths_2 $ph > /web/parsing/$prid\_2.tmp`
-              ;    #Parse again.
+            system("./Pinda.R -parser $ph > /web/parsing/$prid.tmp") == 0
+              or die $?;    #Parse.
+            system("./Pinda.R -lengths_1 $ph > /web/parsing/$prid\_1.tmp") == 0
+              or die $?;    #Parse.
+            system("./Pinda.R -lengths_2 $ph > /web/parsing/$prid\_2.tmp") == 0
+              or die $?;    #Parse again.
 
             tree_manipulation2($ph);
 
-            `zip -j $zip $ph`;
-            `./Pinda.R $drawntree $ph`;    #Visually draw the tree.
-            `rm $ph`;
+            system("zip -j $zip $ph") == 0 or die $?;
+            system("./Pinda.R $drawntree $ph") == 0
+              or die $?;    #Visually draw the tree.
+            system("rm $ph") == 0 or die $?;
 
             parser( "../parsing/$prid.tmp", "../parsing/$prid\_1.tmp",
                 "../parsing/$prid\_2.tmp" );
@@ -963,7 +988,7 @@ ENDHTML
             <table border='1'>
             <tr bgcolor=FFFF66><th><center>Possible duplications of
 EMAIL_END
-            if ( $db !~ /nt\.fasta/ )
+            if ( $db !~ /nt[.]fasta/ )
             {
                 print <<"ENDHTML";
                 <a href=http://www.uniprot.org/uniprot/$one>
@@ -1120,13 +1145,16 @@ EMAIL_END
 
 sub tcoffee                  #Pretty self-explanatory.
 {
-    `export HOME_4_TCOFFEE="/web/t-coffee/" ;
-    export DIR_4_TCOFFEE="/web/t-coffee/dir_4_t-coffee/" ;
-    export CACHE_4_TCOFFEE="/web/t-coffee/dir_4_t-coffee/cache/" ;
-    export TMP="/web/t-coffee/dir_4_t-coffee/tmp/" ;
+    system(
+        "export HOME_4_TCOFFEE='/web/t-coffee/' ;
+    export DIR_4_TCOFFEE='/web/t-coffee/dir_4_t-coffee/' ;
+    export CACHE_4_TCOFFEE='/web/t-coffee/dir_4_t-coffee/cache/' ;
+    export TMP='/web/t-coffee/dir_4_t-coffee/tmp/' ;
     export NO_ERROR_REPORT_4_TCOFFEE='1' ;
     export NO_WARNING_4_TCOFFEE='1' ;
-t_coffee -infile $_[0] -output=clustal -outfile $_[1] -proxy -email=$_[2]`;
+t_coffee -infile $_[0] -output=clustal -outfile $_[1] -proxy -email=$_[2]"
+      ) == 0
+      or die $?;
     return 0;
 }
 
@@ -1135,7 +1163,7 @@ sub tree_manipulation1
 {
     my $yacounter = 0;
     my ( $tree_fh, @tree );
-    open $tree_fh, '<', $_[0];
+    open $tree_fh, '<', $_[0] or die $!;
     my $line;
     {
         local $/ = "\n";
@@ -1149,13 +1177,13 @@ sub tree_manipulation1
             $yacounter++;
         }
     }
-    close $tree_fh;
-    open $tree_fh, '>', $_[0];
+    close $tree_fh or die $!;
+    open $tree_fh, '>', $_[0] or die $!;
     foreach my $yacounter (@tree)
     {
         print {$tree_fh} $yacounter;
     }
-    close $tree_fh;
+    close $tree_fh or die $!;
     return 0;
 }
 
@@ -1165,7 +1193,7 @@ sub tree_manipulation2
     my $yacounter = 0;
     my ( $bvdiv, $tree_fh );
     my @tree = ();
-    open $tree_fh, '<', $_[0];
+    open $tree_fh, '<', $_[0] or die $!;
     my $line;
     {
         local $/ = "\n";
@@ -1180,13 +1208,13 @@ sub tree_manipulation2
             $yacounter++;
         }
     }
-    close $tree_fh;
-    open $tree_fh, '>', $_[0];
+    close $tree_fh or die $!;
+    open $tree_fh, '>', $_[0] or die $!;
     foreach my $yacounter (@tree)
     {
         print {$tree_fh} $yacounter;
     }
-    close $tree_fh;
+    close $tree_fh or die $!;
     return 0;
 }
 
@@ -1204,14 +1232,14 @@ sub parser    #Parsing.#
     my $unicounter    = 0;
 
     my (
-        $continue,           $degree_of_confidence,  $search_id,
-        $tree_for_parsingfh, $tree_node_distancesfh, $tree_tip_distancesfh,
-        @compare_seq,        @parsed_lines,          @parsed_linesnew,
-        @parsing_lines,      @star_seq,              @uni_ids,
-        %distanceshash,      %distanceshash2
+        $continue,             $degree_of_confidence, $last_yes,
+        $search_id,            $tree_for_parsingfh,   $tree_node_distancesfh,
+        $tree_tip_distancesfh, @compare_seq,          @parsed_lines,
+        @parsed_linesnew,      @parsing_lines,        @star_seq,
+        @uni_ids,              %distanceshash,        %distanceshash2
     );
 
-    open $tree_for_parsingfh, '<', $_[0];
+    open $tree_for_parsingfh, '<', $_[0] or die $!;
     my $line;
     {
         local $/ = "\n\n";
@@ -1243,7 +1271,8 @@ sub parser    #Parsing.#
         }
     }
 
-    open $tree_node_distancesfh, '<', $_[1];    #Distance parser between nodes.
+    open $tree_node_distancesfh, '<', $_[1]
+      or die $!;    #Distance parser between nodes.
     my $neoline;
     {
         local $/ = "\n";
@@ -1251,39 +1280,44 @@ sub parser    #Parsing.#
         {
             if ( $neoline !~ /\$/ && $neoline =~ /\w/ )
             {
-              CONTINUE_PARSING:
-                if ( $neoline !~ /[.]/ )    #This line contains sequence names.
+                do
                 {
-                    if ( $neoline =~ /\s?(\w+)/ || $neoline =~ /(Root)/ )
+                    if ( $neoline !~ /[.]/ ) #This line contains sequence names.
                     {
-                        $parsed_lines[$plc][$plc2] = $1;
+                        if ( $neoline =~ /\s?(\w+)/ || $neoline =~ /(Root)/ )
+                        {
+                            $parsed_lines[$plc][$plc2] = $1;
+                            $plc2++;
+                            $continue = $';
+                            if ( $continue =~ /\w/ )
+                            {
+                                $neoline = $continue;
+                            }
+                            else
+                            {
+                                $plc++;
+                            }
+                        }
+                    }
+                    elsif (
+                        $neoline =~ /(\d+[.]\d+)/ )  #This line contains values.
+                    {
+                        $distanceshash{ $parsed_lines[ $plc - 1 ][$plc2] } = $1;
                         $plc2++;
                         $continue = $';
                         if ( $continue =~ /\w/ )
                         {
                             $neoline = $continue;
-                            goto CONTINUE_PARSING;
                         }
-                        $plc++;
                     }
-                }
-                elsif ( $neoline =~ /(\d+[.]\d+)/ )  #This line contains values.
-                {
-                    $distanceshash{ $parsed_lines[ $plc - 1 ][$plc2] } = $1;
-                    $plc2++;
-                    $continue = $';
-                    if ( $continue =~ /\w/ )
-                    {
-                        $neoline = $continue;
-                        goto CONTINUE_PARSING;
-                    }
-                }
+                } while ( $continue =~ /\w/ );
                 $plc2 = 0;
             }
         }
     }
-    close $tree_node_distancesfh;
-    open $tree_tip_distancesfh, '<', $_[2];   #Distance parser from tip to node.
+    close $tree_node_distancesfh or die $!;
+    open $tree_tip_distancesfh, '<', $_[2]
+      or die $!;    #Distance parser from tip to node.
     my $neoline2;
     {
         local $/ = "\n";
@@ -1291,40 +1325,46 @@ sub parser    #Parsing.#
         {
             if ( $neoline2 !~ /\$/ && $neoline2 =~ /\w/ )
             {
-              KEEP_ON_PARSING:
-                if ( $neoline2 !~ /[.]/ )    #This line contains sequence names.
+                do
                 {
-                    if ( $neoline2 =~ /\_?\_?\_?(\w{6,})\_?\_?\_?\s/ )
+                    if (
+                        $neoline2 !~ /[.]/ ) #This line contains sequence names.
                     {
-                        $parsed_linesnew[$plcn][$plcn2] = $1;
+                        if ( $neoline2 =~ /\_?\_?\_?(\w{6,})\_?\_?\_?\s/ )
+                        {
+                            $parsed_linesnew[$plcn][$plcn2] = $1;
+                            $plcn2++;
+                            $continue = $';
+                            if ( $continue =~ /\w/ )
+                            {
+                                $neoline2 = $continue;
+                            }
+                            else
+                            {
+                                $plcn++;
+                            }
+                        }
+                    }
+                    elsif (
+                        $neoline2 =~ /(\d+[.]\d+)/ ) #This line contains values.
+                    {
+                        $distanceshash2{ $parsed_linesnew[ $plcn - 1 ][$plcn2] }
+                          = $1;
                         $plcn2++;
                         $continue = $';
                         if ( $continue =~ /\w/ )
                         {
                             $neoline2 = $continue;
-                            goto KEEP_ON_PARSING;
                         }
-                        $plcn++;
                     }
-                }
-                elsif ( $neoline2 =~ /(\d+[.]\d+)/ ) #This line contains values.
-                {
-                    $distanceshash2{ $parsed_linesnew[ $plcn - 1 ][$plcn2] } =
-                      $1;
-                    $plcn2++;
-                    $continue = $';
-                    if ( $continue =~ /\w/ )
-                    {
-                        $neoline2 = $continue;
-                        goto KEEP_ON_PARSING;
-                    }
-                }
+                } while ( $continue =~ /\w/ );
                 $plcn2 = 0;
             }
         }
     }
-    close $tree_tip_distancesfh;
+    close $tree_tip_distancesfh or die $!;
 
+    my $p_l_s = @parsing_lines;
     foreach my $line (@parsing_lines)
     {
         if ( $line =~ /$starting_point/ )
@@ -1335,22 +1375,23 @@ sub parser    #Parsing.#
                 $search_id = $1 . $2;
                 $sscounter++;
             }
-            foreach my $line (@parsing_lines)
+            for ( 0 .. $p_l_s - 1 )
             {
-              LOOP0:
-                if ( $line =~ /$search_id"/ )
+                if ( $parsing_lines[$_] =~ /$search_id"/ )
                 {
-                    if ( $line =~ /parts\$(\w)(\w+)/ )   #Get the node's node...
+                    if ( $parsing_lines[$_] =~
+                        /parts\$(\w)(\w+)/ )     #Get the node's node...
                     {
                         $star_seq[$sscounter] = $1 . $2;
                         $search_id = $1 . $2;
                         $sscounter++;
-                        goto LOOP0;
+                        $_--;
                     }
                 }
             }
         }
     }
+    $last_yes = 0;
     foreach my $uni (@uni_ids)
     {
         $sscounter = 0;
@@ -1364,19 +1405,18 @@ sub parser    #Parsing.#
                     $search_id = $1 . $2;
                     $sscounter++;
                 }
-                foreach my $line (@parsing_lines)
+                for ( 0 .. $p_l_s - 1 )
                 {
-                  LOOP:
-                    if ( $line =~ /$search_id"/ )
+                    if ( $parsing_lines[$_] =~ /$search_id"/ )
                     {
 
                         #Get the node's node...#
-                        if ( $line =~ /parts\$(\w)(\w+)/ )
+                        if ( $parsing_lines[$_] =~ /parts\$(\w)(\w+)/ )
                         {
                             $compare_seq[$sscounter] = $1 . $2;
                             $search_id = $1 . $2;
                             $sscounter++;
-                            goto LOOP;
+                            $_--;
                         }
                     }
                 }
@@ -1411,15 +1451,15 @@ sub parser    #Parsing.#
                             if ( defined $distanceshash{"$star_node"} )
                             {
                                 $node_distance -= $distanceshash{"$star_node"};
+                                last;
                             }
                             else
                             {
                                 $node_distance = $distanceshash{"$star_node"};
+                                last;
                             }
-                            goto EXIT0;
                         }
                     }
-                  EXIT0:
 
                     #For every sequence, except for the input one...
                     if ( $uni !~ /$starting_point/ )
@@ -1446,47 +1486,59 @@ sub parser    #Parsing.#
                             $cancounter++;
                         }
                     }
-                    goto EXIT;
+                    $last_yes = 1;
+                    last;
+                }
+                if ( $last_yes == 1 )
+                {
+                    last;
                 }
             }
-        }
-        $node_distance = 0;
-        $ginomenon     = 1;
-
-        #If the input sequence had only the root common with a sequence...#
-        foreach my $node (@compare_seq)
-        {
-            if ( $node =~ /(\d+)\_?/ )
+            if ( $last_yes == 1 )
             {
-
-                #Add the distance from the sequence's node to root.#
-                $node_distance += $distanceshash{"$node"};
-                $ginomenon *= $1 / 1000.0;
+                last;
             }
         }
-        foreach my $star_node (@star_seq)
+        if ( $last_yes == 0 )
         {
-            if ( $star_node =~ /(\d+)\_?/ )
+            $node_distance = 0;
+            $ginomenon     = 1;
+
+            #If the input sequence had only the root common with a sequence...#
+            foreach my $node (@compare_seq)
             {
+                if ( $node =~ /(\d+)\_?/ )
+                {
 
-                #Add the distance from the input sequence's node to root.#
-                $node_distance += $distanceshash{"$star_node"};
-                $ginomenon *= $1 / 1000.0;
+                    #Add the distance from the sequence's node to root.#
+                    $node_distance += $distanceshash{"$node"};
+                    $ginomenon *= $1 / 1000.0;
+                }
             }
-        }
+            foreach my $star_node (@star_seq)
+            {
+                if ( $star_node =~ /(\d+)\_?/ )
+                {
 
-        #Add the tip-to-closest-node distances.#
-        $node_distance +=
-          $distanceshash2{"$uni"} + $distanceshash2{"$starting_point"};
-        $degree_of_confidence = $ginomenon / $node_distance;
-        $candidate[$cancounter] = $degree_of_confidence . q{ } . $uni;
-        $cancounter++;
-      EXIT:
+                    #Add the distance from the input sequence's node to root.#
+                    $node_distance += $distanceshash{"$star_node"};
+                    $ginomenon *= $1 / 1000.0;
+                }
+            }
+
+            #Add the tip-to-closest-node distances.#
+            $node_distance +=
+              $distanceshash2{"$uni"} + $distanceshash2{"$starting_point"};
+            $degree_of_confidence = $ginomenon / $node_distance;
+            $candidate[$cancounter] = $degree_of_confidence . q{ } . $uni;
+            $cancounter++;
+        }
         $node_distance = 0;
         $ginomenon     = 1;
         @compare_seq   = ();
+        $last_yes      = 0;
     }
-    @candidate = map join( ' ', @$_ ), sort { $a->[0] <=> $b->[0] } map [split],
+    @candidate = map join( q{ }, @{$_} ), sort { $a->[0] <=> $b->[0] } map {[split]}
       @candidate;
     @candidate = reverse @candidate;    #Reverse the array.#
     return @candidate, $starting_point;

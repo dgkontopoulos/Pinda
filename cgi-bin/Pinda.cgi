@@ -49,7 +49,7 @@ use Sys::CPU;
 use strict;
 use warnings;
 
-my ( $starting_point, @candidate );
+my ( $one, $one_gos, $starting_point, @candidate, @cand_sans, %common );
 
 open STDERR, '>', '/dev/null' or die $!;
 
@@ -234,7 +234,7 @@ ENDHTML
         }
         elsif (
             $string    =~ /gb[|](.+)[|]/        #For DNA from Genbank/EMBL/DBJ
-            || $string =~ /dbj[|](.+)[|]/
+            || $string =~ /dbj[|](.+)[|]/ 
             || $string =~ /emb[|](.+)[|]/
           )
         {
@@ -317,7 +317,7 @@ ENDHTML
 
         #BLASTN for DNA.#
         system(
-"blastn -query $tmp -db $db -evalue 0.00000001 -num_threads $cpu_n -out $out"
+"blastn -query $tmp -db $db -evalue 0.00000000001 -num_threads $cpu_n -out $out"
           ) == 0
           or die $?;
     }
@@ -326,7 +326,7 @@ ENDHTML
 
         #BLASTP for Proteins.#
         system(
-"blastp -query $tmp -db $db -evalue 0.00000001 -num_threads $cpu_n -out $out"
+"blastp -query $tmp -db $db -evalue 0.00000000001 -num_threads $cpu_n -out $out"
           ) == 0
           or die $?;
     }
@@ -577,7 +577,7 @@ elsif ($query->param('organism')
     #Retrieve the hash from before.#
     my %organisms = thaw $query->param('organisms');
 
-    my $one = $organisms{$organism};
+    $one = $organisms{$organism};
     if ( $one =~ /(\w+)[.]\d*/ )
     {
         $one = $1;
@@ -590,7 +590,7 @@ elsif ($query->param('organism')
     alarm $timeout;
 
     my $cpu_n = Sys::CPU::cpu_count();    #Get the number of cpu cores.
-    my $e_th  = '0.00000001';             #E-value
+    my $e_th  = '0.00000000001';          #E-value
     if ( $db !~ /nt[.]fasta/ )
     {
         $out = '../outs/psiblast/' . $prid . '.tmp';
@@ -601,8 +601,7 @@ elsif ($query->param('organism')
     #is missing from the BLAST+ ones.
         system(
 "legacy_blast.pl $psib -i $tmp -b 7000 -j 50 -h $e_th -d $db -a $cpu_n -o $out"
-          ) == 0
-          or die $?;
+        );
 
         #Shorten the PSI-BLAST output file. We only need the last iteration.#
         open $out_fh, '<', $out or die $!;
@@ -784,10 +783,13 @@ elsif ($query->param('organism')
           or die $?;    #Visually draw the tree.
         system("rm $ph $phb") == 0 or die $?;
 
-        alarm 0;
-
         parser( "../parsing/$prid.tmp", "../parsing/$prid\_1.tmp",
             "../parsing/$prid\_2.tmp" );
+        if ( $db !~ /nt[.]fasta/ )
+        {
+            GOs_in_common();
+        }
+        alarm 0;
         print <<"ENDHTML";
         -->
         <center><br><font size='3' face='Georgia' color='330033'>
@@ -811,12 +813,16 @@ EMAIL_END
             print <<"ENDHTML";
             <a href=http://www.uniprot.org/uniprot/$one>
             $one</a>.</center></th>
-            <th><center>Confidence Value</center></th></tr>
+            <th><center>Confidence Value</center></th>
+            <th>GOs in common (out of $one_gos)</th>
+            <th>GOs not found in $one</th></tr>
 ENDHTML
             $email_data .= <<"EMAIL_END";
             <a href=http://www.uniprot.org/uniprot/$one>
             $one</a>.</center></th>
-            <th><center>Confidence Value</center></th></tr>
+            <th><center>Confidence Value</center></th>
+            <th>GOs in common (out of $one_gos)</th>
+            <th>GOs not found in $one</th></tr>
 EMAIL_END
         }
         else
@@ -905,12 +911,22 @@ EMAIL_END
 </center></td>";
                     }
                 }
-                printf '<td align=left><center>%5.1f%%</center></td></tr>',
+                printf '<td align=left><center>%5.1f%%</center></td>',
                   $conf_temp / $top_can * 100;
 
                 $email_data .=
                   sprintf '<td align=left><center>%5.1f%%</center></td></tr>',
                   $conf_temp / $top_can * 100;
+                if ( $db !~ /nt[.]fasta/ )
+                {
+                    if ( $common{$uni_temp} =~ /(\w+)\s(\w+)/ )
+                    {
+                        print <<"ENDHTML";
+						<td><center>$1</center></td>
+						<td><center>$2</center></td></tr>
+ENDHTML
+                    }
+                }
             }
         }
         print '</table>';
@@ -929,24 +945,6 @@ EMAIL_END
     {
         if ( $sequences_number == 3 )
         {
-            alarm 0;
-            print <<"ENDHTML";
-            -->
-            <font size='3' face='Georgia' color='330033'><br><br>
-            <center>
-            The number of sequences for this particular organism is three.
-            <br><b>The dendrogram cannot be bootstrapped.</b></font>
-            </center>
-ENDHTML
-            $email_data .= <<"EMAIL_END";
-<font size='3' face='Georgia' color='330033'><br><br>
-            <center>
-            The number of sequences for this particular organism is three.
-            <br><b>The dendrogram cannot be bootstrapped.</b></font>
-            </center>
-EMAIL_END
-
-            #Alignment, NJ tree plotting and parsing.#
             tcoffee( $sequences, $fnaln, $email2 );
             system("clustalw -INFILE=$fnaln -OUTFILE=$ph -tree") == 0 or die $?;
             rename "../results/final_alns/multalign/$prid.ph",
@@ -967,6 +965,25 @@ EMAIL_END
             system("./Pinda.R $drawntree $ph") == 0
               or die $?;    #Visually draw the tree.
             system("rm $ph") == 0 or die $?;
+
+            alarm 0;
+            print <<"ENDHTML";
+            -->
+            <font size='3' face='Georgia' color='330033'><br><br>
+            <center>
+            The number of sequences for this particular organism is three.
+            <br><b>The dendrogram cannot be bootstrapped.</b></font>
+            </center>
+ENDHTML
+            $email_data .= <<"EMAIL_END";
+<font size='3' face='Georgia' color='330033'><br><br>
+            <center>
+            The number of sequences for this particular organism is three.
+            <br><b>The dendrogram cannot be bootstrapped.</b></font>
+            </center>
+EMAIL_END
+
+            #Alignment, NJ tree plotting and parsing.#
 
             parser( "../parsing/$prid.tmp", "../parsing/$prid\_1.tmp",
                 "../parsing/$prid\_2.tmp" );
@@ -1115,7 +1132,7 @@ ENDHTML
                 T-Coffee Alignment</a></font></center>
 EMAIL_END
         }
-        if ( $sequences_number == 1 )
+        if ( $sequences_number <= 1 )
         {
             alarm 0;
 
@@ -1183,7 +1200,7 @@ sub tree_manipulation1
     {
         print {$tree_fh} $yacounter;
     }
-    close $tree_fh or die $!;
+    close $tree_fh or die $! g;
     return 0;
 }
 
@@ -1538,10 +1555,79 @@ sub parser    #Parsing.#
         @compare_seq   = ();
         $last_yes      = 0;
     }
-    @candidate = map join( q{ }, @{$_} ), sort { $a->[0] <=> $b->[0] } map {[split]}
-      @candidate;
+    @candidate = map join( q{ }, @{$_} ),
+      sort { $a->[0] <=> $b->[0] } map { [split] } @candidate;
     @candidate = reverse @candidate;    #Reverse the array.#
-    return @candidate, $starting_point;
+    $cand_sans[0] = $one;
+    my $neocounter = 1;
+    foreach my $can (@candidate)
+    {
+        if ( $can =~ /\s(\w+)/ )
+        {
+            $cand_sans[$neocounter] = $1;
+            $neocounter++;
+        }
+    }
+    return @candidate, @cand_sans, $starting_point;
+}
+
+sub GOs_in_common
+{
+    my @input_gos;
+    my $input_counter = 0;
+    foreach my $seq (@cand_sans)
+    {
+        if ( $seq eq $one )
+        {
+            my $dbfetch = get("http://www.uniprot.org/uniprot/$one.txt");
+            do
+            {
+                if ( $dbfetch =~ /GO; GO:(\d+);/ )
+                {
+                    $input_gos[$input_counter] = $1;
+                    $input_counter++;
+                    $dbfetch = $';
+                }
+            } while ( $dbfetch =~ /GO; GO:(\d+);/ );
+            $one_gos = @input_gos;
+        }
+        else
+        {
+            my $eq_counter  = 0;
+            my $res_counter = 0;
+            my $dbfetch     = get("http://www.uniprot.org/uniprot/$seq.txt");
+            do
+            {
+                if ( $dbfetch =~ /GO; GO:(\d+);/ )
+                {
+                    foreach my $go (@input_gos)
+                    {
+                        if ( $go == $1 )
+                        {
+                            $eq_counter++;
+                        }
+                    }
+                    $res_counter++;
+                    $dbfetch = $';
+                }
+            } while ( $dbfetch =~ /GO; GO:(\d+);/ );
+            my $neq_counter = $res_counter - $eq_counter;
+            if ( $eq_counter == 0 && $res_counter == 0 )
+            {
+                $eq_counter  = "NA";
+                $neq_counter = "NA";
+            }
+            $common{$seq} = $eq_counter . q{ } . $neq_counter;
+        }
+    }
+    foreach my $seq (@cand_sans)
+    {
+        if ( $seq ne $one )
+        {
+            print $seq . q{  } . $common{$seq} . "\n\n";
+        }
+    }
+    return $one_gos, %common;
 }
 
 sub job_timer    #Calculates the execution time from PSI-BLAST to the end.#

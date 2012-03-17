@@ -1,6 +1,8 @@
 #!/usr/bin/perl -w
 
-#$VERSION = '0.01';
+####################
+#$VERSION = '0.01';#
+####################
 
 =head1 NAME
 
@@ -49,11 +51,15 @@ use Sys::CPU;
 use strict;
 use warnings;
 
-my ( $one, $one_gos, $starting_point, @candidate, @cand_sans, %common );
+my ( $db, $one, $one_gos, $sequences_number, $starting_point, @candidate,
+    @cand_sans, %common );
 
-open STDERR, '>', '/dev/null' or die $!;
+#open STDERR, '>', '/dev/null' or die $!;
 
-my $query = CGI->new;    #Start the CGI environment.
+###################################
+#Initializing the CGI environment.#
+###################################
+my $query = CGI->new;
 print $query->header;
 print <<"ENDHTML";
 <!DOCTYPE html
@@ -78,7 +84,7 @@ charset="utf-8"></script><script type="text/javascript" charset="utf-8">
 </head>
 <body background='../background.jpg'>
 <LINK REL='SHORTCUT ICON' HREF='../pinda.ico'>
-<center><br><a href='$0'><img src='../pindalogo.png'></a><br>
+<center><br><a href='http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi'><img src='../pindalogo.png'></a><br>
 <p style='width: 500px; text-align:center;margin-bottom:1px;margin-top:1px'>
 <br>
 <hr/>
@@ -93,7 +99,10 @@ my $email_data = <<'EMAIL_END';
 <br>
 EMAIL_END
 
-if ( !$query->param )    #Index Page with input box, DB selection and email
+############################################################
+#Index Page with input box, DB selection and email address.#
+############################################################
+if ( !$query->param )
 {
     print <<"ENDHTML";
     <center>
@@ -101,7 +110,7 @@ if ( !$query->param )    #Index Page with input box, DB selection and email
     <br><font size='3' face='Georgia' color='330033'>
     <i>Please enter a sequence.</i>
     </font><br>
-    <form id = 'submit' method = 'post' action=$0>
+    <form id = 'submit' method = 'post' action=http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi>
     <textarea name='sequence' rows=7 cols=55 style='font-family:courier new'
     ></textarea></p><br>
     <p style='width: 470px; text-align:left;margin-bottom:1px;margin-top:1px'>
@@ -151,25 +160,110 @@ if ( !$query->param )    #Index Page with input box, DB selection and email
 ENDHTML
 }
 
+######################################
 #After the original input is given...#
-
+######################################
 elsif ( !$query->param('button') && !$query->param('dropdown') )
 {
-    my $SWISSPROT = '../databases/Swissprot/uniprot_sprot.fasta';
-    my $UNIPROT   = '../databases/UniProt/UniProt.fasta';
-    my $NT        = '../databases/nt/nt.fasta';
+    my $SWISSPROT = '/usr/local/databases/Swissprot/uniprot_sprot.fasta';
+    my $UNIPROT   = '/usr/local/databases/UniProt/UniProt.fasta';
+    my $NT        = '/usr/local/databases/nt/nt.fasta';
     my $list      = 0;
     my $list2     = 0;
     my $number    = 0;
 
     my (
-        $accession, $alns_fh,   $dbfetch,    $des,       $hit,
-        $hit_check, $input_hit, $match_line, $org,       $organism,
-        $tmp_fh,    @input_org, @organism,   %organisms, %seq
+        $accession, $dbfetch,    $des,       $hit,      $hit_check,
+        $input_hit, $match_line, $org,       $organism, $tmp_fh,
+        @input_org, @organism,   %organisms, %seq
     );
     print '<center>';
     my $string = $query->param('sequence');
-    if ( $string =~ /^\s*$/ )
+
+    #####################
+    #Database selection.#
+    #####################
+    my $db = $query->param('db');
+    if ( $db eq 'Swiss-Prot' )
+    {
+        if (   $string !~ /\n\w+[R|N|D|B|E|Q|Z|H|I|L|K|M|F|P|S|W|Y|V]/
+            && $string =~ /\n\w+/ )
+        {
+            print
+"<br><br><br>This sequence is a nucleotide one and cannot be run against Swiss-Prot.
+			<br>Please <a href='javascript:history.go(-1)'><u>go back</u></a> and choose the
+			nt database.";
+            exit;
+        }
+        elsif ($string !~ /\w+[R|N|D|B|E|Q|Z|H|I|L|K|M|F|P|S|W|Y|V]/
+            && $string !~ /\n/ )
+        {
+            print
+"<br><br><br>This sequence is a nucleotide one and cannot be run against Swiss-Prot.
+			<br>Please <a href='javascript:history.go(-1)'><u>go back</u></a> and choose the
+			nt database.";
+            exit;
+        }
+        else
+        {
+            $db = $SWISSPROT;
+        }
+    }
+    elsif ( $db eq 'UniProt' )
+    {
+        if (   $string !~ /\n\w+[R|N|D|B|E|Q|Z|H|I|L|K|M|F|P|S|W|Y|V]/
+            && $string =~ /\n\w+/ )
+        {
+            print
+"<br><br><br>This sequence is a nucleotide one and cannot be run against UniProt.
+			<br>Please <a href='javascript:history.go(-1)'><u>go back</u></a> and choose the
+			nt database.";
+            exit;
+        }
+        elsif ($string !~ /\w+[R|N|D|B|E|Q|Z|H|I|L|K|M|F|P|S|W|Y|V]/
+            && $string !~ /\n/ )
+        {
+            print
+"<br><br><br>This sequence is a nucleotide one and cannot be run against UniProt.
+			<br>Please <a href='javascript:history.go(-1)'><u>go back</u></a> and choose the
+			nt database.";
+            exit;
+        }
+        else
+        {
+            $db = $UNIPROT;
+        }
+    }
+    elsif ( $db eq 'nt' )
+        {
+        if (   $string =~ /\n\w+[R|N|D|B|E|Q|Z|H|I|L|K|M|F|P|S|W|Y|V]/
+            && $string =~ /\n\w+/ )
+        {
+            print
+"<br><br><br>This sequence is an amino acid one and cannot be run against nt.
+			<br>Please <a href='javascript:history.go(-1)'><u>go back</u></a> and choose either
+			the Swiss-Prot or UniProt databases.";
+            exit;
+        }
+        elsif ($string =~ /\w+[R|N|D|B|E|Q|Z|H|I|L|K|M|F|P|S|W|Y|V]/
+            && $string !~ />/ )
+        {
+            print
+"<br><br><br>This sequence is an amino acid one and cannot be run against nt.
+			<br>Please <a href='javascript:history.go(-1)'><u>go back</u></a> and choose the
+			nt database.";
+            exit;
+        }
+        else
+        {
+            $db = $NT;
+        }
+    }
+
+    ##########################
+    #Handling empty sequences#
+    ##########################
+    if ( $string =~ /^\s*$/ || $string !~ /\n?\w+/ )
     {
         print <<"ENDHTML";
         <br><br<br><br><br>
@@ -181,6 +275,9 @@ elsif ( !$query->param('button') && !$query->param('dropdown') )
 ENDHTML
         exit;
     }
+    #####################################################
+    #Making sure that sequences will be in FASTA format.#
+    #####################################################
     else
     {
         if ( $string =~ /(>)/ )
@@ -194,10 +291,11 @@ ENDHTML
         {
             $string = ">\n" . $string;
         }
-        if (
-            ( $string =~ /OS\=(\w+)\s+(\w+)/ )    #For proteins#
-            || ( $string =~ /\[(\w+)\s+(\w+)/ )
-          )
+        ############################################
+        #Handling organism declaration in proteins.#
+        ############################################
+        if (   ( $string =~ /OS\=(\w+)\s+(\w+)/ )
+            || ( $string =~ /\[(\w+)\s+(\w+)/ ) )
         {
             $organism = $1 . q{ } . $2;
             if (   ( $' =~ /^$/ )
@@ -222,25 +320,28 @@ ENDHTML
                 }
             }
         }
-        elsif ( $string =~ /ref[|](.+)[|]/ )    #For DNA from Refseq
+        #######################################
+        #Handling organism declaration in DNA.#
+        #######################################
+        elsif ( $string =~ /ref[|](.+)[|]/ )
         {
             $input_hit = $1;
             $dbfetch   = get(
-                "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$1");
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$1&style=raw"
+            );
             if ( $dbfetch =~ /ORGANISM\s+(\w+\s+\w+)/ )
             {
                 $organism = $1;
             }
         }
-        elsif (
-            $string    =~ /gb[|](.+)[|]/        #For DNA from Genbank/EMBL/DBJ
-            || $string =~ /dbj[|](.+)[|]/ 
-            || $string =~ /emb[|](.+)[|]/
-          )
+        elsif ($string =~ /gb[|](.+)[|]/
+            || $string =~ /dbj[|](.+)[|]/
+            || $string =~ /emb[|](.+)[|]/ )
         {
             $input_hit = $1;
-            $dbfetch =
-              get("http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$1");
+            $dbfetch   = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$1&style=raw"
+            );
             if ( $dbfetch =~ /OS\s+(\w+\s+\w+)/ )
             {
                 $organism = $1;
@@ -248,21 +349,9 @@ ENDHTML
         }
     }
 
-    # Database selection #
-    my $db = $query->param('db');
-    if ( $db eq 'Swiss-Prot' )
-    {
-        $db = $SWISSPROT;
-    }
-    elsif ( $db eq 'UniProt' )
-    {
-        $db = $UNIPROT;
-    }
-    elsif ( $db eq 'nt' )
-    {
-        $db = $NT;
-    }
-
+    ####################################
+    #Checking for a valid email address#
+    ####################################
     my $email = $query->param('email');
     if (   ( $email =~ /^$/ )
         || ( $email =~ /^\s+$/ ) )
@@ -297,7 +386,9 @@ ENDHTML
     </div>
 ENDHTML
 
+    #########################################
     #Get process id and set BLAST parameters#
+    #########################################
     my $prid = $$;
     my $tmp  = '../tmps/blast/' . $prid . '.tmp';
     my $out  = '../outs/blast/' . $prid . '.tmp';
@@ -306,27 +397,38 @@ ENDHTML
     close $tmp_fh or die $!;
 
     print "<!--\n";
-    my $timeout = 60;    #Avoiding browser timeout.
+
+    ###########################
+    #Avoiding browser timeout.#
+    ###########################
+    my $timeout = 60;
     $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
     alarm $timeout;
 
-    my $cpu_n = Sys::CPU::cpu_count();    # get the number of cpu cores
+    ##############################
+    #Get the number of cpu cores.#
+    ##############################
+    my $cpu_n = Sys::CPU::cpu_count();
 
     if ( $db eq $NT )
     {
 
+        #################
         #BLASTN for DNA.#
+        #################
         system(
-"blastn -query $tmp -db $db -evalue 0.00000000001 -num_threads $cpu_n -out $out"
+"/usr/local/bin/blastn -query $tmp -db $db -evalue 0.00000000001 -num_threads $cpu_n -out $out"
           ) == 0
           or die $?;
     }
     else
     {
 
+        ######################
         #BLASTP for Proteins.#
+        ######################
         system(
-"blastp -query $tmp -db $db -evalue 0.00000000001 -num_threads $cpu_n -out $out"
+"/usr/local/bin/blastp -query $tmp -db $db -evalue 0.00000000001 -num_threads $cpu_n -out $out"
           ) == 0
           or die $?;
     }
@@ -336,131 +438,146 @@ ENDHTML
         -file   => "$out"
     );
 
-    my $alns      = '../results/final_alns/' . $prid . '.tmp';
-    my $alignment = Bio::AlignIO->new(
-        -file   => ">>$alns",
-        -format => 'clustalw'
-    );
-
     my $hit_old = 0;
 
+    #############################
     #Start parsing BLAST output.#
+    #############################
     while ( my $result = $blast->next_result )
     {
         while ( my $hit = $result->next_hit )
         {
-            while ( my $hsp = $hit->next_hsp )
+            if ( $hit->description =~ /(OS\=\w+)\s+(\w+)/ )
             {
-                if ( $hit->description =~ /(OS\=\w+)\s+(\w+)/ )
+                $des = $1 . q{ } . $2 . $';
+                if ( $des =~ /OS\=(\w+)\s+(\w+)/ )
                 {
-                    $des = $1 . q{ } . $2 . $';
-                    if ( $des =~ /OS\=(\w+)\s+(\w+)/ )
-                    {
-                        $org = $1 . q{ } . $2;
+                    $org = $1 . q{ } . $2;
 
-                        # Populate the organism dropdown list.#
-                        $organism[$list] = $org;
+                    ######################################
+                    #Populate the organism dropdown list.#
+                    ######################################
+                    $organism[$list] = $org;
+                    $list++;
 
-                        $list++;
-
-                        #Populate an array with results from defined organism.#
-                        if (   defined $organism
-                            && $org eq $organism
-                            && defined $input_hit )
-                        {
-                            if ( $hit->accession =~ /tr[|](\w+)[|]/ )
-                            {
-                                $input_org[$list2] = $1;
-                            }
-                            else
-                            {
-                                $input_org[$list2] = $hit->accession;
-                            }
-                            $list2++;
-                        }
-
-                    #Populate a hash with the first result from every organism.#
-                        if ( !( defined $organisms{$org} ) )
-                        {
-                            if ( $hit->accession =~ /tr[|](\w+)[|]/ )
-                            {
-                                $organisms{$org} = $1;
-                            }
-                            else
-                            {
-                                $organisms{$org} = $hit->accession;
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    if ( $hit->name =~ /ref[|](.+)[|]/ )
-                    {
-                        if ( $1 =~ /[.]\d*/ )
-                        {
-                            $accession = $`;
-                        }
-                        $dbfetch = get(
-"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$accession"
-                        );
-
-                        # Populate the organism dropdown list.#
-                        if ( $dbfetch =~ /ORGANISM\s+(\w+\s+\w+)/ )
-                        {
-                            $org = $1;
-                            $organism[$list] = $org;
-                            $list++;
-                        }
-                    }
-                    elsif ($hit->name =~ /gb[|](.+)[|]/
-                        || $hit->name =~ /dbj[|](.+)[|]/
-                        || $hit->name =~ /emb[|](.+)[|]/ )
-                    {
-                        if ( $1 =~ /[.]\d*/ )
-                        {
-                            $accession = $`;
-                        }
-                        $dbfetch = get(
-"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$accession"
-                        );
-
-                        # Populate the organism dropdown list.#
-                        if ( $dbfetch =~ /OS\s+(\w+\s+\w+)/ )
-                        {
-                            $org = $1;
-                            $organism[$list] = $org;
-                            $list++;
-                        }
-                    }
-
+                    #######################################################
                     #Populate an array with results from defined organism.#
-                    if ( $org eq $organism && defined $input_hit )
+                    #######################################################
+                    if (   defined $organism
+                        && $org eq $organism
+                        && defined $input_hit )
                     {
-                        $input_org[$list2] = $accession;
+                        if ( $hit->accession =~ /tr[|](\w+)[|]/ )
+                        {
+                            $input_org[$list2] = $1;
+                        }
+                        else
+                        {
+                            $input_org[$list2] = $hit->accession;
+                        }
                         $list2++;
                     }
-
+                    ############################################################
                     #Populate a hash with the first result from every organism.#
+                    ############################################################
                     if ( !( defined $organisms{$org} ) )
                     {
-                        $organisms{$org} = $accession;
+                        if ( $hit->accession =~ /tr[|](\w+)[|]/ )
+                        {
+                            $organisms{$org} = $1;
+                        }
+                        else
+                        {
+                            $organisms{$org} = $hit->accession;
+                        }
                     }
-                    if ( $hit_old ne $accession )
-                    {
-                        my $aln = $hsp->get_aln;
-                        $alignment->write_aln($aln);
-                        open $alns_fh, '>>', $alns or die $!;
-                        print {$alns_fh} " \n";
-                        close $alns_fh or die $!;
-                        $match_line = $hsp->hit_string();
-                        $match_line =~ tr/- //d;
-                        $seq{"$number"} =
-                          ">$accession $org" . q{ } . $match_line;
-                        $number++;
-                    }
-                    $hit_old = $accession;
                 }
+            }
+            else
+            {
+                if ( $hit->name =~ /ref[|](.+)[|]/ )
+                {
+                    if ( $1 =~ /[.]\d*/ )
+                    {
+                        $accession = $`;
+                    }
+                    $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$accession&style=raw"
+                    );
+
+                    ######################################
+                    #Populate the organism dropdown list.#
+                    ######################################
+                    if ( $dbfetch =~ /ORGANISM\s+(\w+\s+\w+)/ )
+                    {
+                        $org = $1;
+                        $organism[$list] = $org;
+                        $list++;
+                    }
+                }
+                elsif ($hit->name =~ /gb[|](.+)[|]/
+                    || $hit->name =~ /dbj[|](.+)[|]/
+                    || $hit->name =~ /emb[|](.+)[|]/ )
+                {
+                    if ( $1 =~ /[.]\d*/ )
+                    {
+                        $accession = $`;
+                    }
+                    $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$accession&style=raw"
+                    );
+
+                    ######################################
+                    #Populate the organism dropdown list.#
+                    ######################################
+                    if ( $dbfetch =~ /OS\s+(\w+\s+\w+)/ )
+                    {
+                        $org = $1;
+                        $organism[$list] = $org;
+                        $list++;
+                    }
+                }
+                #######################################################
+                #Populate an array with results from defined organism.#
+                #######################################################
+                if ( $org eq $organism && defined $input_hit )
+                {
+                    $input_org[$list2] = $accession;
+                    $list2++;
+                }
+                ############################################################
+                #Populate a hash with the first result from every organism.#
+                ############################################################
+                if ( !( defined $organisms{$org} ) )
+                {
+                    $organisms{$org} = $accession;
+                }
+                ####################
+                #Get the sequences.#
+                ####################
+                if ( defined $accession && $hit_old ne $accession )
+                {
+                    if ( $accession =~ /[_]/ )
+                    {
+                        $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$accession&format=fasta&style=raw"
+                        );
+                    }
+                    else
+                    {
+                        $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$accession&format=fasta&style=raw"
+                        );
+                    }
+                    if ( $dbfetch =~ /\n/ )
+                    {
+                        $match_line = $';
+                    }
+                    $match_line =~ tr/\n//d;
+                    $seq{"$number"} = ">$accession $org" . q{ } . $match_line;
+                    $number++;
+                }
+                $hit_old = $accession;
             }
         }
     }
@@ -474,9 +591,15 @@ ENDHTML
             }
         }
     }
-    my @organism2 = uniq(@organism);      #Show each organism only once.
+    ###############################
+    #Show each organism only once.#
+    ###############################
+    my @organism2 = uniq(@organism);
     my $mikos     = @organism2;
-    my $orghash   = freeze %organisms;    #Pass the hash to the next CGI call.
+    #####################################
+    #Pass the hash to the next CGI call.#
+    #####################################
+    my $orghash = freeze %organisms;
     alarm 0;
     print "-->\n";
     if ( defined $organism )
@@ -488,17 +611,19 @@ ENDHTML
         </font>
 ENDHTML
     }
+    ################################
+    #Creation of the dropdown list.#
+    ################################
     print <<"ENDHTML";
     <font size='2' face='Georgia' color='330033'>
     <br><br><br><br>
     Please select the correct source organism from the following list.
     </font><br><br>
-    <form action='$0' method='POST'>
+    <form action='http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi' method='POST'>
     <p style='width: 270px; text-align:center;margin-bottom:1px;margin-top:1px'>
     <div-align='center'><select name='organism' tabindex='1' class='default'>
 ENDHTML
 
-    #Set the dropdown list.#
     for ( 0 .. $mikos - 1 )
     {
         print "<option value='$organism2[$_]'>$organism2[$_]</option>\n";
@@ -531,7 +656,9 @@ ENDHTML
 ENDHTML
 }
 
+########################################
 #On to the serious computation phase...#
+########################################
 elsif ($query->param('organism')
     && $query->param('prid')
     && $query->param('db')
@@ -546,11 +673,11 @@ elsif ($query->param('organism')
     my $tdcounter        = 0;
 
     my (
-        $acnumber, $alignment, $alns_fh,    $dbfetch,    $des,
-        $hit,      $i,         $line,       $match_line, $number,
-        $org1,     $out,       $out_fh,     $sequence,   $sequences_fh,
-        $tdbg,     @accession, @sequences2, @reslines,   @seq,
-        @seq2,     %seq
+        $acnumber,  $alignment,  $dbfetch,    $des,          $hit,
+        $i,         $line,       $match_line, $number,       $org1,
+        $out,       $out_fh,     $sequence,   $sequences_fh, $tdbg,
+        @accession, @sequences2, @reslines,   @seq,          @seq2,
+        %seq
     );
     my $start_timer = time;
 
@@ -559,6 +686,9 @@ elsif ($query->param('organism')
     my $db       = $query->param('db');
     my $email    = $query->param('email');
 
+    ##################################
+    #Retrieve the DNA sequences hash.#
+    ##################################
     if ( defined $query->param('seq') && defined $query->param('number') )
     {
         %seq    = thaw $query->param('seq');
@@ -573,8 +703,9 @@ elsif ($query->param('organism')
             $seq[$_] = $temp;
         }
     }
-
-    #Retrieve the hash from before.#
+    ##########################################
+    #Retrieve the organisms hash from before.#
+    ##########################################
     my %organisms = thaw $query->param('organisms');
 
     $one = $organisms{$organism};
@@ -585,25 +716,36 @@ elsif ($query->param('organism')
     my $tmp = '../tmps/blast/' . $prid . '.tmp';
 
     print "<!--\n";
-    my $timeout = 60;    #Avoiding browser timeout.
+    ###########################
+    #Avoiding browser timeout.#
+    ###########################
+    my $timeout = 60;
     $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
     alarm $timeout;
-
-    my $cpu_n = Sys::CPU::cpu_count();    #Get the number of cpu cores.
-    my $e_th  = '0.00000000001';          #E-value
+    ##############################
+    #Get the number of cpu cores.#
+    ##############################
+    my $cpu_n = Sys::CPU::cpu_count();
+    ####################
+    #E-value threshold.#
+    ####################
+    my $e_th = '0.00000000001';
     if ( $db !~ /nt[.]fasta/ )
     {
         $out = '../outs/psiblast/' . $prid . '.tmp';
-        my $psib = 'blastpgp';            #Blast Algorithm.
+        my $psib = 'blastpgp';
 
-    #Run the BLAST+ executable through the compatibility layer of the old BLAST
-    #programs, so as to keep the maximum iterations option that, at first sight,
-    #is missing from the BLAST+ ones.
+   #############################################################################
+   #Run the BLAST+ executable through the compatibility layer of the old BLAST #
+   #programs, so as to keep the maximum iterations option that, at first sight,#
+   #is missing from the BLAST+ ones.                                           #
+   #############################################################################
         system(
 "legacy_blast.pl $psib -i $tmp -b 7000 -j 50 -h $e_th -d $db -a $cpu_n -o $out"
         );
-
+        #####################################################################
         #Shorten the PSI-BLAST output file. We only need the last iteration.#
+        #####################################################################
         open $out_fh, '<', $out or die $!;
         while ( $line = <$out_fh> )
         {
@@ -638,9 +780,9 @@ elsif ($query->param('organism')
             -file   => "$out"
         );
 
-        my $alns = '../results/final_alns/' . $prid . '.tmp';
-
+        #################################
         #Start parsing PSI-BLAST output.#
+        #################################
         while ( my $result = $blast->next_result )
         {
             while ( my $it = $result->next_iteration )
@@ -650,57 +792,57 @@ elsif ($query->param('organism')
                 while (( $hit = $it->next_hit_new )
                     || ( $hit = $it->next_hit_old ) )
                 {
-                    while ( my $hsp = $hit->next_hsp )
+                    if ( ( $it->number ) > $iteration_number )
                     {
-                        if ( ( $it->number ) > $iteration_number )
+                        $iteration_number = $it->number;
+                    }
+                    if ( $hit->description =~ /(OS\=\w+)\s+(\w+)/ )
+                    {
+                        $des = $1 . q{ } . $2 . $';
+                        if ( $des =~ /OS\=(\w+)\s+(\w+)/ )
                         {
-                            $iteration_number = $it->number;
+                            $org1 = $1 . q{ } . $2;
                         }
-                        if ( $hit->description =~ /(OS\=\w+)\s+(\w+)/ )
+                        if ( $org1 eq $organism )
                         {
-                            $des = $1 . q{ } . $2 . $';
-                            if ( $des =~ /OS\=(\w+)\s+(\w+)/ )
+                            if ( $hit->accession =~ /tr[|](\w+)[|]/ )
                             {
-                                $org1 = $1 . q{ } . $2;
+                                $accession[$number] = $1;
+                                $acnumber = $accession[$number];
                             }
-                            if ( $org1 eq $organism )
+                            else
                             {
-                                if ( $hit->accession =~ /tr[|](\w+)[|]/ )
-                                {
-                                    $accession[$number] = $1;
-                                    $acnumber = $accession[$number];
-                                }
-                                else
-                                {
-                                    $accession[$number] = $hit->accession;
-                                    $acnumber = $accession[$number];
-                                }
-                                if ( $hit_old ne $acnumber )
-                                {
-                                    $dbfetch = get(
+                                $accession[$number] = $hit->accession;
+                                $acnumber = $accession[$number];
+                            }
+                            ###################################
+                            #Get the full sequence of the hit.#
+                            ###################################
+                            if ( $hit_old ne $acnumber )
+                            {
+                                $dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=uniprotkb&id=$acnumber&format=fasta&style=raw"
-                                    );
-                                    if ( $dbfetch =~ /\n/ )
-                                    {
-                                        $match_line = $';
-                                    }
-                                    $seq[$number] =
-                                      ">$accession[$number] $org1\n"
-                                      . $match_line . "\n";
-                                    $number++;
+                                );
+                                if ( $dbfetch =~ /\n/ )
+                                {
+                                    $match_line = $';
                                 }
-                                $hit_old = $acnumber;
+                                $seq[$number] = ">$accession[$number] $org1\n"
+                                  . $match_line . "\n";
+                                $number++;
                             }
+                            $hit_old = $acnumber;
                         }
                     }
                 }
             }
         }
     }
-
+    ###########################
     #Append sequences to file.#
+    ###########################
     @seq2 = uniq(@seq);
-    my $sequences = '../seq/final_seq/' . $prid . '.tmp';
+    my $sequences = '/var/www/Pinda/seq/final_seq/' . $prid . '.tmp';
     open $sequences_fh, '>', $sequences or die $!;
     foreach my $sequence (@seq2)
     {
@@ -720,7 +862,10 @@ elsif ($query->param('organism')
         local $/ = "\n";
         while ( $line2 = <$sequences_fh> )
         {
-            $line2 =~ s/$one/***$one***/;    #Add stars (***) to the input seq.
+            ##################################
+            #Add stars to the input sequence.#
+            ##################################
+            $line2 =~ s/$one/***$one***/;
             $sequences2[$seq2counter] = $line2;
             $seq2counter++;
         }
@@ -734,11 +879,11 @@ elsif ($query->param('organism')
     }
     close $sequences_fh or die $!;
 
-    my $fnaln     = '/web/results/final_alns/multalign/' . $prid . '.aln';
-    my $ph        = '/web/results/trees/phs/' . $prid . '.ph';
-    my $phb       = '/web/results/trees/phbs/' . $prid . '.phb';
-    my $drawntree = '/web/results/trees/drawn/' . $prid . '.png';
-    my $zip       = '/web/results/trees/zips/' . $prid . '.zip';
+    my $fnaln = '/var/www/Pinda/results/final_alns/multalign/' . $prid . '.aln';
+    my $ph    = '/var/www/Pinda/results/trees/phs/' . $prid . '.ph';
+    my $phb   = '/var/www/Pinda/results/trees/phbs/' . $prid . '.phb';
+    my $drawntree = '/var/www/Pinda/results/trees/drawn/' . $prid . '.png';
+    my $zip       = '/var/www/Pinda/results/trees/zips/' . $prid . '.zip';
 
     open $sequences_fh, '<', $sequences or die $!;
     my $line3;
@@ -746,6 +891,9 @@ elsif ($query->param('organism')
         local $/ = "\n\n";
         while ( $line3 = <$sequences_fh> )
         {
+            ################################
+            #Count the resulting sequences.#
+            ################################
             $sequences_number++;
         }
     }
@@ -755,15 +903,23 @@ elsif ($query->param('organism')
     $email2 =~ s/([\@])/\\$1/;
     if ( $sequences_number > 3 )
     {
-
+        #########################################################
         #Alignment, NJ tree plotting, bootstrapping and parsing.#
-        tcoffee( $sequences, $fnaln, $email2 );
+        #########################################################
+        if ( $sequences_number >= 50 || $db =~ /nt[.]fasta/ )
+        {
+            tcoffee( $sequences, $fnaln, $email2, 0 );
+        }
+        else
+        {
+            tcoffee( $sequences, $fnaln, $email2, 1 );
+        }
+        system("rm *.dnd");
         system("clustalw -INFILE=$fnaln -OUTFILE=$ph -tree") == 0 or die $?;
         system(
 "clustalw -INFILE=$fnaln -OUTFILE=$phb -bootstrap=1000 -bootlabels=node"
           ) == 0
           or die $?;
-        system("rm *.dnd") == 0 or die $?;
         rename "../results/final_alns/multalign/$prid.ph",
           "../results/trees/phs/$prid.ph"
           or die $!;
@@ -771,25 +927,42 @@ elsif ($query->param('organism')
           "../results/trees/phbs/$prid.phb"
           or die $!;
         tree_manipulation1($phb);
-        system("./Pinda.R -parser $phb > /web/parsing/$prid.tmp") == 0
-          or die $?;    #Parse.
-        system("./Pinda.R -lengths_1 $phb > /web/parsing/$prid\_1.tmp") == 0
-          or die $?;    #Parse.
-        system("./Pinda.R -lengths_2 $phb > /web/parsing/$prid\_2.tmp") == 0
-          or die $?;    #Parse again.
+        ##########################################################
+        #Parsing the phb tree for distances and bootstrap values.#
+        ##########################################################
+        system("../Pinda.R -parser $phb > /var/www/Pinda/parsing/$prid.tmp") ==
+          0
+          or die $?;
+        system(
+            "../Pinda.R -lengths_1 $phb > /var/www/Pinda/parsing/$prid\_1.tmp")
+          == 0
+          or die $?;
+        system(
+            "../Pinda.R -lengths_2 $phb > /var/www/Pinda/parsing/$prid\_2.tmp")
+          == 0
+          or die $?;
         tree_manipulation2($phb);
         system("zip -j $zip $ph $phb") == 0 or die $?;
-        system("./Pinda.R $drawntree $phb") == 0
-          or die $?;    #Visually draw the tree.
+        ################
+        #Draw the tree.#
+        ################
+        system("../Pinda.R $drawntree $phb") == 0
+          or die $?;
         system("rm $ph $phb") == 0 or die $?;
 
         parser( "../parsing/$prid.tmp", "../parsing/$prid\_1.tmp",
             "../parsing/$prid\_2.tmp" );
         if ( $db !~ /nt[.]fasta/ )
         {
+            ##############################
+            #Find common gene ontologies.#
+            ##############################
             GOs_in_common();
         }
         alarm 0;
+        #######################
+        #Final results output.#
+        #######################
         print <<"ENDHTML";
         -->
         <center><br><font size='3' face='Georgia' color='330033'>
@@ -854,24 +1027,32 @@ ENDHTML
 EMAIL_END
             }
         }
-
+        ############################
         #Table of Confidence Value.#
+        ############################
         my $top_can;
-        if ( $candidate[0] =~ /(\d?\d?\d?.?\d+e?-?\d*) \w+/ )   #Input sequence.
+        #################
+        #Input sequence.#
+        #################
+        if ( $candidate[0] =~ /(\d?\d?\d?.?\d+e?-?\d*) \w+/ )
         {
             $top_can = $1;
         }
 
         foreach my $can (@candidate)
         {
-            if (
-                $can !~ /$starting_point/    #Not the input sequence.
-                && $can =~ /(\d?\d?\d?.?\d+e?-?\d*) (\w+)/
-              )                              #All the rest.
+            ################################################
+            #List every sequence, except for the input one.#
+            ################################################
+            if (   $can !~ /$starting_point/
+                && $can =~ /(\d?\d?\d?.?\d+e?-?\d*) (\w+)/ )
             {
                 my $conf_temp = $1;
                 my $uni_temp  = $2;
-                if ( $tdcounter == 1 )       #Color the html table alternately.
+                ###################################
+                #Color the html table alternately.#
+                ###################################
+                if ( $tdcounter == 1 )
                 {
                     $tdbg      = 'F8FBFE';
                     $tdcounter = 0;
@@ -930,6 +1111,9 @@ ENDHTML
             }
         }
         print '</table>';
+        #############
+        #Drawn tree.#
+        #############
         print <<"ENDHTML";
         <img src='../results/trees/drawn/$prid.png'><br>
         <a href=../results/trees/zips/$prid.zip>NJ Tree Produced</a>
@@ -945,6 +1129,9 @@ EMAIL_END
     {
         if ( $sequences_number == 3 )
         {
+            ##########################################
+            #Alignment, NJ-tree plotting and parsing.#
+            ##########################################
             tcoffee( $sequences, $fnaln, $email2 );
             system("clustalw -INFILE=$fnaln -OUTFILE=$ph -tree") == 0 or die $?;
             rename "../results/final_alns/multalign/$prid.ph",
@@ -952,18 +1139,29 @@ EMAIL_END
               or die $!;
             system("rm *.dnd") == 0 or die $?;
             tree_manipulation1($ph);
-            system("./Pinda.R -parser $ph > /web/parsing/$prid.tmp") == 0
-              or die $?;    #Parse.
-            system("./Pinda.R -lengths_1 $ph > /web/parsing/$prid\_1.tmp") == 0
-              or die $?;    #Parse.
-            system("./Pinda.R -lengths_2 $ph > /web/parsing/$prid\_2.tmp") == 0
-              or die $?;    #Parse again.
+            ####################################
+            #Parsing the ph tree for distances.#
+            ####################################
+            system("./Pinda.R -parser $ph > /var/www/Pinda/parsing/$prid.tmp")
+              == 0
+              or die $?;
+            system(
+                "./Pinda.R -lengths_1 $ph > /var/www/Pinda/parsing/$prid\_1.tmp"
+              ) == 0
+              or die $?;
+            system(
+                "./Pinda.R -lengths_2 $ph > /var/www/Pinda/parsing/$prid\_2.tmp"
+              ) == 0
+              or die $?;
 
             tree_manipulation2($ph);
 
             system("zip -j $zip $ph") == 0 or die $?;
+            ################
+            #Draw the tree.#
+            ################
             system("./Pinda.R $drawntree $ph") == 0
-              or die $?;    #Visually draw the tree.
+              or die $?;
             system("rm $ph") == 0 or die $?;
 
             alarm 0;
@@ -982,8 +1180,6 @@ ENDHTML
             <br><b>The dendrogram cannot be bootstrapped.</b></font>
             </center>
 EMAIL_END
-
-            #Alignment, NJ tree plotting and parsing.#
 
             parser( "../parsing/$prid.tmp", "../parsing/$prid\_1.tmp",
                 "../parsing/$prid\_2.tmp" );
@@ -1049,19 +1245,26 @@ EMAIL_END
             }
 
             my $top_can;
-            if ( $candidate[0] =~ /(\d?\d?\d?.?\d+e?-?\d*) \w+/ )    #Input seq.
+            #################
+            #Input sequence.#
+            #################
+            if ( $candidate[0] =~ /(\d?\d?\d?.?\d+e?-?\d*) \w+/ )
             {
                 $top_can = $1;
             }
 
             foreach my $can (@candidate)
             {
-                if (
-                    $can !~ /$starting_point/    #Not the input sequence.
-                    && $can =~ /(\d?\d?\d?.?\d+e?-?\d*) (\w+)/
-                  )                              #All the rest.
+                ################################################
+                #List every sequence, except for the input one.#
+                ################################################
+                if (   $can !~ /$starting_point/
+                    && $can =~ /(\d?\d?\d?.?\d+e?-?\d*) (\w+)/ )
                 {
-                    if ( $tdcounter == 1 )    #Color the html table alternately.
+                    ###################################
+                    #Color the html table alternately.#
+                    ###################################
+                    if ( $tdcounter == 1 )
                     {
                         $tdbg      = 'F8FBFE';
                         $tdcounter = 0;
@@ -1100,6 +1303,9 @@ EMAIL_END
         }
         if ( $sequences_number == 2 )
         {
+            #################
+            #Alignment only.#
+            #################
             alarm 0;
             print <<"ENDHTML";
             -->
@@ -1119,7 +1325,6 @@ ENDHTML
             </center>
 EMAIL_END
 
-            #Alignment only.#
             tcoffee( $sequences, $fnaln, $email );
             print <<"ENDHTML";
                 <center><br><font size='3' face='Georgia' color='330033'><br>
@@ -1135,8 +1340,9 @@ EMAIL_END
         if ( $sequences_number <= 1 )
         {
             alarm 0;
-
+            #####################
             #Nothing to do here.#
+            #####################
             print <<"ENDHTML";
             -->
             <center>
@@ -1154,28 +1360,55 @@ EMAIL_END
     }
     my $end_timer = time;
     my $run_time  = $end_timer - $start_timer;
-    job_timer($run_time);    #Calculate how much time that took.
-
-    send_email($email);      #Send email.
+    ##############################################
+    #Calculate how much time it took for the job.#
+    ##############################################
+    job_timer($run_time);
+    ##############
+    #Send e-mail.#
+    ##############
+    send_email($email);
     print "</center>\n</body>\n</html>";
 }
 
-sub tcoffee                  #Pretty self-explanatory.
+#####################
+#T-Coffee execution.#
+#####################
+sub tcoffee
 {
-    system(
-        "export HOME_4_TCOFFEE='/web/t-coffee/' ;
-    export DIR_4_TCOFFEE='/web/t-coffee/dir_4_t-coffee/' ;
-    export CACHE_4_TCOFFEE='/web/t-coffee/dir_4_t-coffee/cache/' ;
-    export TMP='/web/t-coffee/dir_4_t-coffee/tmp/' ;
-    export NO_ERROR_REPORT_4_TCOFFEE='1' ;
-    export NO_WARNING_4_TCOFFEE='1' ;
-t_coffee -infile $_[0] -output=clustal -outfile $_[1] -proxy -email=$_[2]"
-      ) == 0
-      or die $?;
+    ###################################
+    #Set needed environment variables.#
+    ###################################
+    $ENV{HOME_4_TCOFFE}   = '/var/www/Pinda/t-coffee/';
+    $ENV{DIR_4_TCOFFEE}   = '/var/www/Pinda/t-coffee/dir_4_t-coffee/';
+    $ENV{CACHE_4_TCOFFEE} = '/var/www/Pinda/t-coffee/dir_4_t-coffee/cache';
+    $ENV{TMP}             = '/var/www/Pinda/t-coffee/dir_4_t-coffee/tmp';
+    $ENV{NO_ERROR_REPORT_4_TCOFFEE} = '1';
+    $ENV{NO_WARNING_4_TCOFFEE}      = '1';
+    ############################################################
+    #Run a slow alignment algorithm for large or big data sets.#
+    ############################################################
+    if ( $_[3] == '0' )
+    {
+        system(
+"/usr/local/bin/t_coffee -infile $_[0] -output=clustal -outfile $_[1] -proxy -email=$_[2] -special_mode low_memory -newtree=/tmp/1.dnd"
+        );
+    }
+    ######################################
+    #Normal T-Coffee alignment otherwise.#
+    ######################################
+    else
+    {
+        system(
+"/usr/local/bin/t_coffee -infile $_[0] -output=clustal -outfile $_[1] -proxy -email=$_[2] -newtree=/tmp/1.dnd"
+        );
+    }
     return 0;
 }
 
+################################################################
 #Removing the TRICHOTOMY word, setting negative values to zero.#
+################################################################
 sub tree_manipulation1
 {
     my $yacounter = 0;
@@ -1186,10 +1419,11 @@ sub tree_manipulation1
         local $/ = "\n";
         while ( $line = <$tree_fh> )
         {
-            $line =~ s/TRICHOTOMY//;    #Remove the 'TRICHOTOMY' word.
+            $line =~ s/TRICHOTOMY//;
             $line =~ s/-\d[.]\d*/0/;
-
-      #Fix NJ negative branch length artifact, by setting those numbers to zero.
+ ###############################################################################
+ #Fix the NJ negative branch length artifact, by setting those numbers to zero.#
+ ###############################################################################
             $tree[$yacounter] = $line;
             $yacounter++;
         }
@@ -1200,11 +1434,12 @@ sub tree_manipulation1
     {
         print {$tree_fh} $yacounter;
     }
-    close $tree_fh or die $! g;
+    close $tree_fh or die $!;
     return 0;
 }
-
+#######################################################################
 #Dividing the bootstrap values by 10, to reach a maximum value of 100.#
+#######################################################################
 sub tree_manipulation2
 {
     my $yacounter = 0;
@@ -1235,7 +1470,10 @@ sub tree_manipulation2
     return 0;
 }
 
-sub parser    #Parsing.#
+##########################################################
+#Parse the tree to exract distances and bootstrap values.#
+##########################################################
+sub parser
 {
     my $cancounter    = 0;
     my $ginomenon     = 1;
@@ -1260,17 +1498,24 @@ sub parser    #Parsing.#
     my $line;
     {
         local $/ = "\n\n";
-
+        ########################
         #Get all the sequences.#
+        ########################
         while ( $line = <$tree_for_parsingfh> )
         {
-            if ( $line =~ /\s"(\w\_\_\_\w+\_\_\_)"/ )    #Input sequence.
+            ##########################
+            #Find the input sequence.#
+            ##########################
+            if ( $line =~ /\s"(\w\_\_\_\w+\_\_\_)"/ )
             {
                 $starting_point = $1;
                 $uni_ids[$unicounter] = $1;
                 $unicounter++;
             }
-            if ( $line =~ /"(\w{6,})"/ )                 #Other sequences.
+            ###############################
+            #Find all the other sequences.#
+            ###############################
+            if ( $line =~ /"(\w{6,})"/ )
             {
                 if ( $1 !~ /\D\d{1,4}\_/ )
                 {
@@ -1278,7 +1523,7 @@ sub parser    #Parsing.#
                     $unicounter++;
                 }
             }
-            if ( $' =~ /"(\w{6,})"/ && $1 !~ /\D\d{1,4}\_/ )   #Other sequences.
+            if ( $' =~ /"(\w{6,})"/ && $1 !~ /\D\d{1,4}\_/ )
             {
                 $uni_ids[$unicounter] = $1;
                 $unicounter++;
@@ -1288,8 +1533,11 @@ sub parser    #Parsing.#
         }
     }
 
+    #################################
+    #Parsing distance between nodes.#
+    #################################
     open $tree_node_distancesfh, '<', $_[1]
-      or die $!;    #Distance parser between nodes.
+      or die $!;
     my $neoline;
     {
         local $/ = "\n";
@@ -1299,7 +1547,10 @@ sub parser    #Parsing.#
             {
                 do
                 {
-                    if ( $neoline !~ /[.]/ ) #This line contains sequence names.
+                    ####################################
+                    #This line contains sequence names.#
+                    ####################################
+                    if ( $neoline !~ /[.]/ )
                     {
                         if ( $neoline =~ /\s?(\w+)/ || $neoline =~ /(Root)/ )
                         {
@@ -1317,7 +1568,11 @@ sub parser    #Parsing.#
                         }
                     }
                     elsif (
-                        $neoline =~ /(\d+[.]\d+)/ )  #This line contains values.
+                        ############################
+                        #This line contains values.#
+                        ############################
+                        $neoline =~ /(\d+[.]\d+)/
+                      )
                     {
                         $distanceshash{ $parsed_lines[ $plc - 1 ][$plc2] } = $1;
                         $plc2++;
@@ -1333,8 +1588,11 @@ sub parser    #Parsing.#
         }
     }
     close $tree_node_distancesfh or die $!;
+    ######################################################
+    #Parsing distance from every tip to its closest node.#
+    ######################################################
     open $tree_tip_distancesfh, '<', $_[2]
-      or die $!;    #Distance parser from tip to node.
+      or die $!;
     my $neoline2;
     {
         local $/ = "\n";
@@ -1344,8 +1602,10 @@ sub parser    #Parsing.#
             {
                 do
                 {
-                    if (
-                        $neoline2 !~ /[.]/ ) #This line contains sequence names.
+                    ####################################
+                    #This line contains sequence names.#
+                    ####################################
+                    if ( $neoline2 !~ /[.]/ )
                     {
                         if ( $neoline2 =~ /\_?\_?\_?(\w{6,})\_?\_?\_?\s/ )
                         {
@@ -1362,8 +1622,10 @@ sub parser    #Parsing.#
                             }
                         }
                     }
-                    elsif (
-                        $neoline2 =~ /(\d+[.]\d+)/ ) #This line contains values.
+                    ############################
+                    #This line contains values.#
+                    ############################
+                    elsif ( $neoline2 =~ /(\d+[.]\d+)/ )
                     {
                         $distanceshash2{ $parsed_linesnew[ $plcn - 1 ][$plcn2] }
                           = $1;
@@ -1386,7 +1648,10 @@ sub parser    #Parsing.#
     {
         if ( $line =~ /$starting_point/ )
         {
-            if ( $line =~ /parts\$(\w)(\w+)/ )   #Get the node of the input seq.
+            #####################################
+            #Get the node of the input sequence.#
+            #####################################
+            if ( $line =~ /parts\$(\w)(\w+)/ )
             {
                 $star_seq[$sscounter] = $1 . $2;
                 $search_id = $1 . $2;
@@ -1396,8 +1661,10 @@ sub parser    #Parsing.#
             {
                 if ( $parsing_lines[$_] =~ /$search_id"/ )
                 {
-                    if ( $parsing_lines[$_] =~
-                        /parts\$(\w)(\w+)/ )     #Get the node's node...
+                    #####################################
+                    #Get the node leading to the node...#
+                    #####################################
+                    if ( $parsing_lines[$_] =~ /parts\$(\w)(\w+)/ )
                     {
                         $star_seq[$sscounter] = $1 . $2;
                         $search_id = $1 . $2;
@@ -1416,7 +1683,10 @@ sub parser    #Parsing.#
         {
             if ( $line =~ /$uni/ )
             {
-                if ( $line =~ /parts\$(\w)(\w+)/ )    #Get the node of a seq.
+                ####################################################
+                #Get the closest node for  all the other sequences.#
+                ####################################################
+                if ( $line =~ /parts\$(\w)(\w+)/ )
                 {
                     $compare_seq[$sscounter] = $1 . $2;
                     $search_id = $1 . $2;
@@ -1426,8 +1696,9 @@ sub parser    #Parsing.#
                 {
                     if ( $parsing_lines[$_] =~ /$search_id"/ )
                     {
-
-                        #Get the node's node...#
+                        #####################################
+                        #Get the node leading to the node...#
+                        #####################################
                         if ( $parsing_lines[$_] =~ /parts\$(\w)(\w+)/ )
                         {
                             $compare_seq[$sscounter] = $1 . $2;
@@ -1441,28 +1712,34 @@ sub parser    #Parsing.#
         }
         foreach my $node (@compare_seq)
         {
-            if ( $node =~ /(\d+)\_?/ )    #Add the distance for this node.
+            if ( $node =~ /(\d+)\_?/ )
             {
+                #################################
+                #Add the distance for this node.#
+                #################################
                 $node_distance += $distanceshash{"$node"};
                 $ginomenon *= $1 / 1000.0;
             }
             foreach my $star_node (@star_seq)
             {
-
-                #Find the common node between input seq and every other seq.#
+              ##################################################################
+              #Find the common node for the input sequence and every other one.#
+              ##################################################################
                 if ( $node eq $star_node )
                 {
                     foreach my $star_node (@star_seq)
                     {
-
+                        ######################################
                         #Add distances until the common node.#
+                        ######################################
                         if ( $star_node ne $node && $star_node =~ /(\d+)\_?/ )
                         {
                             $node_distance += $distanceshash{"$star_node"};
                             $ginomenon *= $1 / 1000.0;
                         }
-
+                        ####################################
                         #Remove the common node's distance.#
+                        ####################################
                         if ( $star_node eq $node )
                         {
                             if ( defined $distanceshash{"$star_node"} )
@@ -1477,24 +1754,28 @@ sub parser    #Parsing.#
                             }
                         }
                     }
-
-                    #For every sequence, except for the input one...
+                    #################################################
+                    #For every sequence, except for the input one...#
+                    #################################################
                     if ( $uni !~ /$starting_point/ )
                     {
-
-                        #Add the tip-to-closest-node distances.
+                        ########################################
+                        #Add the tip-to-closest-node distances.#
+                        ########################################
                         $node_distance +=
                           $distanceshash2{"$uni"} +
                           $distanceshash2{"$starting_point"};
-
-                        #If distance is 0, then the sequences are overlapping!?!
+                       #########################################################
+                       #If distance is 0, then the sequences are overlapping!?!#
+                       #########################################################
                         if ( $node_distance == 0 )
                         {
                             $candidate[$cancounter] = $ginomenon . q{ } . $uni;
                             $cancounter++;
                         }
-
-                        #Calculate the confidence value.
+                        #################################
+                        #Calculate the confidence value.#
+                        #################################
                         else
                         {
                             $degree_of_confidence = $ginomenon / $node_distance;
@@ -1520,14 +1801,16 @@ sub parser    #Parsing.#
         {
             $node_distance = 0;
             $ginomenon     = 1;
-
+            ###################################################################
             #If the input sequence had only the root common with a sequence...#
+            ###################################################################
             foreach my $node (@compare_seq)
             {
                 if ( $node =~ /(\d+)\_?/ )
                 {
-
+                    ####################################################
                     #Add the distance from the sequence's node to root.#
+                    ####################################################
                     $node_distance += $distanceshash{"$node"};
                     $ginomenon *= $1 / 1000.0;
                 }
@@ -1536,14 +1819,16 @@ sub parser    #Parsing.#
             {
                 if ( $star_node =~ /(\d+)\_?/ )
                 {
-
+                    ##########################################################
                     #Add the distance from the input sequence's node to root.#
+                    ##########################################################
                     $node_distance += $distanceshash{"$star_node"};
                     $ginomenon *= $1 / 1000.0;
                 }
             }
-
+            ########################################
             #Add the tip-to-closest-node distances.#
+            ########################################
             $node_distance +=
               $distanceshash2{"$uni"} + $distanceshash2{"$starting_point"};
             $degree_of_confidence = $ginomenon / $node_distance;
@@ -1557,7 +1842,10 @@ sub parser    #Parsing.#
     }
     @candidate = map join( q{ }, @{$_} ),
       sort { $a->[0] <=> $b->[0] } map { [split] } @candidate;
-    @candidate = reverse @candidate;    #Reverse the array.#
+    ############################################################################
+    #Sort the sequences in descending order, according to the confidence value.#
+    ############################################################################
+    @candidate = reverse @candidate;
     $cand_sans[0] = $one;
     my $neocounter = 1;
     foreach my $can (@candidate)
@@ -1571,6 +1859,9 @@ sub parser    #Parsing.#
     return @candidate, @cand_sans, $starting_point;
 }
 
+##########################################################################
+#Find the GOs shared between the input sequence and every other sequence.#
+##########################################################################
 sub GOs_in_common
 {
     my @input_gos;
@@ -1582,6 +1873,9 @@ sub GOs_in_common
             my $dbfetch = get("http://www.uniprot.org/uniprot/$one.txt");
             do
             {
+                ############################################################
+                #Parse the input sequence's UniProt flat file for GO terms.#
+                ############################################################
                 if ( $dbfetch =~ /GO; GO:(\d+);/ )
                 {
                     $input_gos[$input_counter] = $1;
@@ -1590,6 +1884,10 @@ sub GOs_in_common
                 }
             } while ( $dbfetch =~ /GO; GO:(\d+);/ );
             $one_gos = @input_gos;
+            if ( $one_gos == 0 )
+            {
+                last;
+            }
         }
         else
         {
@@ -1598,7 +1896,10 @@ sub GOs_in_common
             my $dbfetch     = get("http://www.uniprot.org/uniprot/$seq.txt");
             do
             {
-                if ( $dbfetch =~ /GO; GO:(\d+);/ )
+        ########################################################################
+        #Parse every other sequence's UniProt flat file for GO terms in common.#
+        ########################################################################
+                if ( defined $dbfetch && $dbfetch =~ /GO; GO:(\d+);/ )
                 {
                     foreach my $go (@input_gos)
                     {
@@ -1612,6 +1913,9 @@ sub GOs_in_common
                 }
             } while ( $dbfetch =~ /GO; GO:(\d+);/ );
             my $neq_counter = $res_counter - $eq_counter;
+            #######################################
+            #If no GO terms are found, put in "NA"#
+            #######################################
             if ( $eq_counter == 0 && $res_counter == 0 )
             {
                 $eq_counter  = "NA";
@@ -1620,17 +1924,12 @@ sub GOs_in_common
             $common{$seq} = $eq_counter . q{ } . $neq_counter;
         }
     }
-    foreach my $seq (@cand_sans)
-    {
-        if ( $seq ne $one )
-        {
-            print $seq . q{  } . $common{$seq} . "\n\n";
-        }
-    }
     return $one_gos, %common;
 }
-
-sub job_timer    #Calculates the execution time from PSI-BLAST to the end.#
+#####################################################
+#Calculates the time needed for the job to complete.#
+#####################################################
+sub job_timer
 {
     my ( $hours, $minutes, $seconds );
     if ( $_[0] > 3600 )
@@ -1769,11 +2068,14 @@ sub job_timer    #Calculates the execution time from PSI-BLAST to the end.#
     return 0;
 }
 
+###########################
+#Email sending subroutine.#
+###########################
 sub send_email
 {
     my $msg = MIME::Lite->new(
         Subject => 'Pinda Job Result',
-        From    => 'pinda@mbg.duth.gr',
+        From    => 'pinda@orion.mbg.duth.gr',
         To      => $_[0],
         Type    => 'text/html',
         Data    => $email_data

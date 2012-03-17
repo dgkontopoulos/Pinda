@@ -1,10 +1,24 @@
 #!/usr/bin/Rscript
 
+##########################################
+#Author: Dimitrios - Georgios Kontopoulos#
+##########################################
+
 ######################################
 #Script in the R programming language#
-# for drawing NJ-trees, bootstrapped #
-#               or not               #
+# for drawing and parsing NJ-trees,  #
+#       bootstrapped or not          #
 ######################################
+
+###################################################################### 
+#This program is free software: you can redistribute it and/or modify#
+#it under the terms of the GNU General Public License as             #
+#published by the Free Software Foundation, either version 3 of the  #
+#License, or (at your option) any later version.                     #
+#                                                                    #
+#For more information, see http://www.gnu.org/licenses/.             #
+######################################################################
+
 args <- commandArgs(TRUE)
 #r <- getOption('repos')
 #r['CRAN'] <- 'http://cran.cc.uoc.gr/'

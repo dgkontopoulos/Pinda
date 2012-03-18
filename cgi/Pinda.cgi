@@ -42,11 +42,13 @@ use Bio::Tree::TreeFunctionsI;
 use Bio::Tree::TreeI;
 use CGI qw(:standard);
 use Data::Validate::Email qw(is_email);
+use File::stat;
 use FreezeThaw qw(freeze thaw);
 use List::MoreUtils qw(uniq);
 use LWP::Simple qw(get);
 use MIME::Lite;
 use Sys::CPU;
+use Time::localtime;
 
 use strict;
 use warnings;
@@ -104,6 +106,13 @@ EMAIL_END
 ############################################################
 if ( !$query->param )
 {
+	###########################################
+	#Get the timestamp for the database files.#
+	###########################################
+	my $nt_timestamp = ctime(stat('/usr/local/databases/nt/')->mtime);
+	my $sw_timestamp = ctime(stat('/usr/local/databases/Swissprot/')->mtime);
+	my $uni_timestamp = ctime(stat('/usr/local/databases/UniProt/')->mtime);
+	
     print <<"ENDHTML";
     <center>
     <p style='width: 470px; text-align:left;margin-bottom:1px;margin-top:1px'>
@@ -124,9 +133,9 @@ if ( !$query->param )
         <span class="clear"></span>
         <div class="content DNA">
             <ul>
-                <font side='2'>
+                <font size='2'>
                 <input type="radio" name="db" value="nt" checked> <b>nt</b> 
-                (<i>NCBI</i>)
+                <font size='1'>(Updated: $nt_timestamp)
                 </font>
                 
             <ul>
@@ -135,9 +144,10 @@ if ( !$query->param )
             <ul>
                 <font size='2'>
                 <input type="radio" name="db" value="Swiss-Prot" checked> <b>Swiss-Prot</b>
-                <br>
-                <input type="radio" name="db" value="UniProt"> <b>UniProt</b> (<i>Swiss-Prot
-                + TrEMBL</i>)
+		<font size ='1'>(Updated: $sw_timestamp)
+                <br><font size='2'>
+                <input type="radio" name="db" value="UniProt"> <b>UniProt</b>
+		<font size='1'>(Updated: $uni_timestamp)
                 </font>
             <ul>
         </div>

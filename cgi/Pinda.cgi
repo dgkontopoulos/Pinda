@@ -1008,7 +1008,6 @@ elsif ($query->param('organism')
         {
             tcoffee( $sequences, $fnaln, $email2, 1 );
         }
-        system("rm *.dnd");
         system("clustalw -INFILE=$fnaln -OUTFILE=$ph -tree") == 0 or die $?;
         system(
 "clustalw -INFILE=$fnaln -OUTFILE=$phb -bootstrap=1000 -bootlabels=node"
@@ -1226,25 +1225,24 @@ EMAIL_END
             ##########################################
             #Alignment, NJ-tree plotting and parsing.#
             ##########################################
-            tcoffee( $sequences, $fnaln, $email2 );
+            tcoffee( $sequences, $fnaln, $email2, 1 );
             system("clustalw -INFILE=$fnaln -OUTFILE=$ph -tree") == 0 or die $?;
             rename "../results/final_alns/multalign/$prid.ph",
               "../results/trees/phs/$prid.ph"
               or die $!;
-            system("rm *.dnd") == 0 or die $?;
             tree_manipulation1($ph);
             ####################################
             #Parsing the ph tree for distances.#
             ####################################
-            system("./Pinda.R -parser $ph > /var/www/Pinda/parsing/$prid.tmp")
+            system("../Pinda.R -parser $ph > /var/www/Pinda/parsing/$prid.tmp")
               == 0
               or die $?;
             system(
-                "./Pinda.R -lengths_1 $ph > /var/www/Pinda/parsing/$prid\_1.tmp"
+"../Pinda.R -lengths_1 $ph > /var/www/Pinda/parsing/$prid\_1.tmp"
               ) == 0
               or die $?;
             system(
-                "./Pinda.R -lengths_2 $ph > /var/www/Pinda/parsing/$prid\_2.tmp"
+"../Pinda.R -lengths_2 $ph > /var/www/Pinda/parsing/$prid\_2.tmp"
               ) == 0
               or die $?;
 
@@ -1254,7 +1252,7 @@ EMAIL_END
             ################
             #Draw the tree.#
             ################
-            system("./Pinda.R $drawntree $ph") == 0
+            system("../Pinda.R $drawntree $ph") == 0
               or die $?;
             system("rm $ph") == 0 or die $?;
 
@@ -1277,6 +1275,14 @@ EMAIL_END
 
             parser( "../parsing/$prid.tmp", "../parsing/$prid\_1.tmp",
                 "../parsing/$prid\_2.tmp" );
+            if ( $db !~ /nt[.]fasta/ )
+            {
+                ##############################
+                #Find common gene ontologies.#
+                ##############################
+                GOs_in_common();
+            }
+
             print <<"ENDHTML";
             <center><br><font size='3' face='Georgia' color='330033'>
             <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment
@@ -1300,12 +1306,16 @@ EMAIL_END
                 print <<"ENDHTML";
                 <a href=http://www.uniprot.org/uniprot/$one>
                 $one</a>.</center></th>
-                <th><center>Confidence Value</center></th></tr>
+                <th><center>Confidence Value</center></th>
+                <th>GOs in common (out of $one_gos)</th>
+				<th>GOs not found in $one</th></tr>
 ENDHTML
                 $email_data .= <<"EMAIL_END";
                 <a href=http://www.uniprot.org/uniprot/$one>
                 $one</a>.</center></th>
-                <th><center>Confidence Value</center></th></tr>
+                <th><center>Confidence Value</center></th>
+                <th>GOs in common (out of $one_gos)</th>
+				<th>GOs not found in $one</th></tr>
 EMAIL_END
             }
             else
@@ -1355,6 +1365,7 @@ EMAIL_END
                 if (   $can !~ /$starting_point/
                     && $can =~ /(\d?\d?\d?.?\d+e?-?\d*) (\w+)/ )
                 {
+                    my $uni_temp = $2;
                     ###################################
                     #Color the html table alternately.#
                     ###################################
@@ -1371,14 +1382,25 @@ EMAIL_END
                     print
 "<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
 </center></td>";
-                    printf '<td align=left><center>%5.1f%%</center></td></tr>',
+                    printf '<td align=left><center>%5.1f%%</center></td>',
                       $1 / $top_can * 100;
                     $email_data .=
 "<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
 </center></td>"
                       . sprintf
-                      '<td align=left><center>%5.1f%%</center></td></tr>',
+                      '<td align=left><center>%5.1f%%</center></td>',
                       $1 / $top_can * 100;
+
+                    if ( $db !~ /nt[.]fasta/ )
+                    {
+                        if ( $common{$uni_temp} =~ /(\w+)\s(\w+)/ )
+                        {
+                            print <<"ENDHTML";
+							<td title="$textcommon{$uni_temp}"><center>$1</center></td>
+							<td title="$textncommon{$uni_temp}"><center>$2</center></td></tr>
+ENDHTML
+                        }
+                    }
                 }
             }
             print '</table>';

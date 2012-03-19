@@ -86,7 +86,8 @@ charset="utf-8"></script><script type="text/javascript" charset="utf-8">
 </head>
 <body background='../background.jpg'>
 <LINK REL='SHORTCUT ICON' HREF='../pinda.ico'>
-<center><br><a href='http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi'><img src='../pindalogo.png'></a><br>
+<center><br><a href='http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi'>
+<img src='http://orion.mbg.duth.gr/Pinda/pindalogo.png'></a><br>
 <p style='width: 500px; text-align:center;margin-bottom:1px;margin-top:1px'>
 <br>
 <hr/>
@@ -96,8 +97,8 @@ ENDHTML
 
 my $email_data = <<'EMAIL_END';
 <center><br>
-<a href='http://localhost/cgi-bin/Pinda.cgi'>
-<img src='http://localhost/pindalogo.png'></a>
+<a href='http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi'>
+<img src='http://orion.mbg.duth.gr/Pinda/pindalogo.png'></a>
 <br>
 EMAIL_END
 
@@ -462,6 +463,7 @@ ENDHTML
                 if ( $hit->accession =~ /tr[|](\w+)[|]/ )
                 {
                     my $ac = $1;
+                    local $/ = undef;
                     open my $out_fh, '<', $out;
                     while ( my $readline = <$out_fh> )
                     {
@@ -471,6 +473,10 @@ ENDHTML
                             if ( $readline =~ /OS\=(\w+\s+\w+)\s+/ )
                             {
                                 $org = $1;
+                                if ( $org =~ /\n/ )
+                                {
+									$org = $` . $';
+								}
                             }
                         }
                     }
@@ -479,6 +485,7 @@ ENDHTML
                 else
                 {
                     my $ac = $hit->accession;
+                    local $/ = undef;
                     open my $out_fh, '<', $out;
                     while ( my $readline = <$out_fh> )
                     {
@@ -488,6 +495,10 @@ ENDHTML
                             if ( $readline =~ /OS\=(\w+\s+\w+)\s+/ )
                             {
                                 $org = $1;
+                                if ( $org =~ /\n/ )
+                                {
+									$org = $` . $';
+								}
                             }
                         }
                     }
@@ -838,6 +849,7 @@ elsif ($query->param('organism')
                         if ( $hit->accession =~ /tr[|](\w+)[|]/ )
                         {
                             my $ac = $1;
+                            local $/ = undef;
                             open my $out_fh, '<', $out;
                             while ( my $readline = <$out_fh> )
                             {
@@ -847,7 +859,11 @@ elsif ($query->param('organism')
                                     if ( $readline =~ /OS\=(\w+\s+\w+)\s+/ )
                                     {
                                         $org1 = $1;
-                                    }
+                                        if ( $org1 =~ /\n/ )
+										{
+											$org1 = $` . $';
+										}
+									}
                                 }
                             }
                             close $out_fh;
@@ -855,6 +871,7 @@ elsif ($query->param('organism')
                         else
                         {
                             my $ac = $hit->accession;
+                            local $/ = undef;
                             open my $out_fh, '<', $out;
                             while ( my $readline = <$out_fh> )
                             {
@@ -864,7 +881,11 @@ elsif ($query->param('organism')
                                     if ( $readline =~ /OS\=(\w+\s+\w+)\s+/ )
                                     {
                                         $org1 = $1;
-                                    }
+                                        if ( $org1 =~ /\n/ )
+										{
+											$org1 = $` . $';
+										}
+									}
                                 }
                             }
                         }
@@ -1039,7 +1060,7 @@ elsif ($query->param('organism')
 ENDHTML
         $email_data .= <<"EMAIL_END";
         <center><br><font size='3' face='Georgia' color='330033'>
-        <a href=http://localhost/results/final_alns/multalign/$prid.aln>T-Coffee
+        <a href=http://orion.mbg.duth.gr/Pinda/results/final_alns/multalign/$prid.aln>T-Coffee
          Alignment</a>
         </font>
         <br><br>
@@ -1184,8 +1205,8 @@ ENDHTML
         <a href=../results/trees/zips/$prid.zip>NJ Tree Produced</a>
 ENDHTML
         $email_data .= <<"EMAIL_END";
-        </table><img src='http://localhost/results/trees/drawn/$prid.png'><br>
-        <a href=http://localhost/results/trees/zips/$prid.zip>NJ Tree Produced
+        </table><img src='http://orion.mbg.duth.gr/Pinda/results/trees/drawn/$prid.png'><br>
+        <a href=http://orion.mbg.duth.gr/Pinda/results/trees/zips/$prid.zip>NJ Tree Produced
         </a>
 EMAIL_END
 
@@ -1259,7 +1280,7 @@ EMAIL_END
 ENDHTML
             $email_data .= <<"EMAIL_END";
             <center><br><font size='3' face='Georgia' color='330033'>
-            <a href=http://localhost/results/final_alns/multalign/$prid.aln>T-Coffee
+            <a href=http://orion.mbg.duth.gr/Pinda/results/final_alns/multalign/$prid.aln>T-Coffee
             Alignment</a>
             </font>
             <br><br>
@@ -1359,9 +1380,9 @@ EMAIL_END
             </center>
 ENDHTML
             $email_data .= <<"EMAIL_END";
-            </table><img src='http://localhost/results/trees/drawn/$prid.png'>
+            </table><img src='http://orion.mbg.duth.gr/Pinda/results/trees/drawn/$prid.png'>
             <br>
-            <a href=http://localhost/results/trees/zips/$prid.zip>NJ Tree
+            <a href=http://orion.mbg.duth.gr/Pinda/results/trees/zips/$prid.zip>NJ Tree
             Produced</a>
 EMAIL_END
 
@@ -1412,13 +1433,17 @@ EMAIL_END
             -->
             <center>
             <br><font size='3' face='Georgia' color='330033'><br><br>
-            No possible duplications have been detected.</font>
+            PSI-BLAST has not detected any sequences related to <b>$one</b> in this organism.
+            <br><br><br><br>
+            No possible duplications of <b>$one</b> have been detected.</font>
             </center>
 ENDHTML
             $email_data .= <<"EMAIL_END";
             <center>
             <br><font size='3' face='Georgia' color='330033'><br><br>
-            No possible duplications have been detected.</font>
+            PSI-BLAST has not detected any sequences related to <b>$one</b> in this organism.
+            <br><br><br><br>
+            No possible duplications of <b>$one</b> have been detected.</font>
             </center>
 EMAIL_END
         }

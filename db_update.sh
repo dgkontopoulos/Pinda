@@ -28,9 +28,9 @@ wget ftp://ftp.ebi.ac.uk/pub/databases/uniprot/knowledgebase/uniprot_sprot.fasta
 #If wget does not finish properly, mail someone to take a look.#
 ################################################################
 if [ "$?" -ne "0" ]; then
-   echo 'The Swiss-prot database failed to download properly.' > /tmp/test
-   mail dimikont2@mbg.duth.gr -s 'DB fetching error' < /tmp/test
-   rm /tmp/test
+   echo 'The Swiss-prot database failed to download properly.' > /tmp/tmp
+   mail dimikont2@mbg.duth.gr -s 'DB fetching error' < /tmp/tmp
+   rm /tmp/tmp
 else
    gunzip uniprot_sprot.fasta.gz
    mkdir /usr/local/databases/UniProt.1/
@@ -48,9 +48,9 @@ else
    #If wget does not finish properly, mail someone to take a look.#
    ################################################################
    if [ "$?" -ne "0" ]; then
-      echo 'The TrEMBL database failed to download properly.' > /tmp/test
-      mail dimikont2@mbg.duth.gr -s 'DB fetching error' < /tmp/test
-      rm /tmp/test
+      echo 'The TrEMBL database failed to download properly.' > /tmp/tmp
+      mail dimikont2@mbg.duth.gr -s 'DB fetching error' < /tmp/tmp
+      rm /tmp/tmp
    else
       gunzip uniprot_trembl.fasta.gz
       cat uniprot_sprot.fasta uniprot_trembl.fasta > UniProt.fasta
@@ -86,9 +86,9 @@ wget ftp://ftp.ncbi.nih.gov/blast/db/FASTA/nt.gz
 #If wget does not finish properly, mail someone to take a look.#
 ################################################################
 if [ "$?" -ne "0" ]; then
-   echo 'The nt database failed to download properly.' > /tmp/test
-   mail dimikont2@mbg.duth.gr -s 'DB fetching error' < /tmp/test
-   rm /tmp/test
+   echo 'The nt database failed to download properly.' > /tmp/tmp
+   mail dimikont2@mbg.duth.gr -s 'DB fetching error' < /tmp/tmp
+   rm /tmp/tmp
 else
    gunzip nt.gz
    mv nt nt.fasta

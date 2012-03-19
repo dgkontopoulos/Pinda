@@ -106,13 +106,13 @@ EMAIL_END
 ############################################################
 if ( !$query->param )
 {
-	###########################################
-	#Get the timestamp for the database files.#
-	###########################################
-	my $nt_timestamp = ctime(stat('/usr/local/databases/nt/')->mtime);
-	my $sw_timestamp = ctime(stat('/usr/local/databases/Swissprot/')->mtime);
-	my $uni_timestamp = ctime(stat('/usr/local/databases/UniProt/')->mtime);
-	
+    ###########################################
+    #Get the timestamp for the database files.#
+    ###########################################
+    my $nt_timestamp  = ctime( stat('/usr/local/databases/nt/')->mtime );
+    my $sw_timestamp  = ctime( stat('/usr/local/databases/Swissprot/')->mtime );
+    my $uni_timestamp = ctime( stat('/usr/local/databases/UniProt/')->mtime );
+
     print <<"ENDHTML";
     <center>
     <p style='width: 470px; text-align:left;margin-bottom:1px;margin-top:1px'>
@@ -245,7 +245,7 @@ elsif ( !$query->param('button') && !$query->param('dropdown') )
         }
     }
     elsif ( $db eq 'nt' )
-        {
+    {
         if (   $string =~ /\n\w+[R|N|D|B|E|Q|Z|H|I|L|K|M|F|P|S|W|Y|V]/
             && $string =~ /\n\w+/ )
         {
@@ -457,49 +457,76 @@ ENDHTML
     {
         while ( my $hit = $result->next_hit )
         {
-            if ( $hit->description =~ /(OS\=\w+)\s+(\w+)/ )
+            if ( $hit->description =~ /OS\=\w+\s+\w+/ )
             {
-                $des = $1 . q{ } . $2 . $';
-                if ( $des =~ /OS\=(\w+)\s+(\w+)/ )
+                if ( $hit->accession =~ /tr[|](\w+)[|]/ )
                 {
-                    $org = $1 . q{ } . $2;
-
-                    ######################################
-                    #Populate the organism dropdown list.#
-                    ######################################
-                    $organism[$list] = $org;
-                    $list++;
-
-                    #######################################################
-                    #Populate an array with results from defined organism.#
-                    #######################################################
-                    if (   defined $organism
-                        && $org eq $organism
-                        && defined $input_hit )
+                    my $ac = $1;
+                    open my $out_fh, '<', $out;
+                    while ( my $readline = <$out_fh> )
                     {
-                        if ( $hit->accession =~ /tr[|](\w+)[|]/ )
+                        if ( $readline =~ />tr[|]$ac[|]/ )
                         {
-                            $input_org[$list2] = $1;
+                            $readline = $';
+                            if ( $readline =~ /OS\=(\w+\s+\w+)\s+/ )
+                            {
+                                $org = $1;
+                            }
                         }
-                        else
-                        {
-                            $input_org[$list2] = $hit->accession;
-                        }
-                        $list2++;
                     }
-                    ############################################################
-                    #Populate a hash with the first result from every organism.#
-                    ############################################################
-                    if ( !( defined $organisms{$org} ) )
+                    close $out_fh;
+                }
+                else
+                {
+                    my $ac = $hit->accession;
+                    open my $out_fh, '<', $out;
+                    while ( my $readline = <$out_fh> )
                     {
-                        if ( $hit->accession =~ /tr[|](\w+)[|]/ )
+                        if ( $readline =~ />sp[|]$ac[|]/ )
                         {
-                            $organisms{$org} = $1;
+                            $readline = $';
+                            if ( $readline =~ /OS\=(\w+\s+\w+)\s+/ )
+                            {
+                                $org = $1;
+                            }
                         }
-                        else
-                        {
-                            $organisms{$org} = $hit->accession;
-                        }
+                    }
+                }
+                ######################################
+                #Populate the organism dropdown list.#
+                ######################################
+                $organism[$list] = $org;
+                $list++;
+
+                #######################################################
+                #Populate an array with results from defined organism.#
+                #######################################################
+                if (   defined $organism
+                    && $org eq $organism
+                    && defined $input_hit )
+                {
+                    if ( $hit->accession =~ /tr[|](\w+)[|]/ )
+                    {
+                        $input_org[$list2] = $1;
+                    }
+                    else
+                    {
+                        $input_org[$list2] = $hit->accession;
+                    }
+                    $list2++;
+                }
+                ############################################################
+                #Populate a hash with the first result from every organism.#
+                ############################################################
+                if ( !( defined $organisms{$org} ) )
+                {
+                    if ( $hit->accession =~ /tr[|](\w+)[|]/ )
+                    {
+                        $organisms{$org} = $1;
+                    }
+                    else
+                    {
+                        $organisms{$org} = $hit->accession;
                     }
                 }
             }
@@ -808,10 +835,38 @@ elsif ($query->param('organism')
                     }
                     if ( $hit->description =~ /(OS\=\w+)\s+(\w+)/ )
                     {
-                        $des = $1 . q{ } . $2 . $';
-                        if ( $des =~ /OS\=(\w+)\s+(\w+)/ )
+                        if ( $hit->accession =~ /tr[|](\w+)[|]/ )
                         {
-                            $org1 = $1 . q{ } . $2;
+                            my $ac = $1;
+                            open my $out_fh, '<', $out;
+                            while ( my $readline = <$out_fh> )
+                            {
+                                if ( $readline =~ />tr[|]$ac[|]/ )
+                                {
+                                    $readline = $';
+                                    if ( $readline =~ /OS\=(\w+\s+\w+)\s+/ )
+                                    {
+                                        $org1 = $1;
+                                    }
+                                }
+                            }
+                            close $out_fh;
+                        }
+                        else
+                        {
+                            my $ac = $hit->accession;
+                            open my $out_fh, '<', $out;
+                            while ( my $readline = <$out_fh> )
+                            {
+                                if ( $readline =~ />sp[|]$ac[|]/ )
+                                {
+                                    $readline = $';
+                                    if ( $readline =~ /OS\=(\w+\s+\w+)\s+/ )
+                                    {
+                                        $org1 = $1;
+                                    }
+                                }
+                            }
                         }
                         if ( $org1 eq $organism )
                         {

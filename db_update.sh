@@ -91,6 +91,7 @@ if [ "$?" -ne "0" ]; then
    rm /tmp/test
 else
    gunzip nt.gz
+   mv nt nt.fasta
    makeblastdb -in nt.fasta -dbtype nucl -parse_seqids
    rm nt.fasta
    

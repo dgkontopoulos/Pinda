@@ -53,8 +53,11 @@ use Time::localtime;
 use strict;
 use warnings;
 
-my ( $db, $one, $one_gos, $sequences_number, $starting_point, @candidate,
-    @cand_sans, %common );
+my (
+    $db,             $one,       $one_gos,   $sequences_number,
+    $starting_point, @candidate, @cand_sans, %common,
+    %textcommon,     %textncommon
+);
 
 #open STDERR, '>', '/dev/null' or die $!;
 
@@ -165,8 +168,13 @@ if ( !$query->param )
     \$('#submit').submit(function(){
     \$('input[type=submit]', this).attr('disabled', 'disabled');
     }); 
-    </script> 
-    
+    </script>
+    <div style="position:fixed;bottom:0;width:100%">
+	<div style="width:300;margin:0px auto;">
+	<hr /><center>
+	<font size='2'><a href="https://github.com/dgkontopoulos/Pinda/">Source Code</a>
+     | Built with <a href="http://www.perl.org/">Perl</a></center>
+    </div></div>
     </body></html>
 ENDHTML
 }
@@ -475,8 +483,8 @@ ENDHTML
                                 $org = $1;
                                 if ( $org =~ /\n/ )
                                 {
-									$org = $` . $';
-								}
+                                    $org = $` . $';
+                                }
                             }
                         }
                     }
@@ -497,8 +505,8 @@ ENDHTML
                                 $org = $1;
                                 if ( $org =~ /\n/ )
                                 {
-									$org = $` . $';
-								}
+                                    $org = $` . $';
+                                }
                             }
                         }
                     }
@@ -860,10 +868,10 @@ elsif ($query->param('organism')
                                     {
                                         $org1 = $1;
                                         if ( $org1 =~ /\n/ )
-										{
-											$org1 = $` . $';
-										}
-									}
+                                        {
+                                            $org1 = $` . $';
+                                        }
+                                    }
                                 }
                             }
                             close $out_fh;
@@ -882,10 +890,10 @@ elsif ($query->param('organism')
                                     {
                                         $org1 = $1;
                                         if ( $org1 =~ /\n/ )
-										{
-											$org1 = $` . $';
-										}
-									}
+                                        {
+                                            $org1 = $` . $';
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1189,8 +1197,8 @@ EMAIL_END
                     if ( $common{$uni_temp} =~ /(\w+)\s(\w+)/ )
                     {
                         print <<"ENDHTML";
-						<td><center>$1</center></td>
-						<td><center>$2</center></td></tr>
+						<td title="$textcommon{$uni_temp}"><center>$1</center></td>
+						<td title="$textncommon{$uni_temp}"><center>$2</center></td></tr>
 ENDHTML
                     }
                 }
@@ -1981,27 +1989,42 @@ sub GOs_in_common
         }
         else
         {
-            my $eq_counter  = 0;
-            my $res_counter = 0;
-            my $dbfetch     = get("http://www.uniprot.org/uniprot/$seq.txt");
+            my $common_prop  = q{};
+            my $ncommon_prop = q{};
+            my @go_list      = ();
+            my $ncpi         = 0;
+            my $eq_counter   = 0;
+            my $res_counter  = 0;
+            my $dbfetch      = get("http://www.uniprot.org/uniprot/$seq.txt");
             do
             {
         ########################################################################
         #Parse every other sequence's UniProt flat file for GO terms in common.#
         ########################################################################
-                if ( defined $dbfetch && $dbfetch =~ /GO; GO:(\d+);/ )
+                if ( defined $dbfetch && $dbfetch =~ /GO; GO:(\d+);\s(.+);/ )
                 {
+                    $go_list[$ncpi] = $2;
+                    $ncpi++;
                     foreach my $go (@input_gos)
                     {
                         if ( $go == $1 )
                         {
                             $eq_counter++;
+                            $common_prop .= $2 . "\n";
                         }
                     }
                     $res_counter++;
                     $dbfetch = $';
                 }
-            } while ( $dbfetch =~ /GO; GO:(\d+);/ );
+            } while ( $dbfetch =~ /GO; GO:(\d+);\s(.+);/ );
+            foreach my $term (@go_list)
+            {
+                $term =~ s/\?/\\?/;
+                if ( $common_prop !~ /$term/ )
+                {
+                    $ncommon_prop .= $term . "\n";
+                }
+            }
             my $neq_counter = $res_counter - $eq_counter;
             #######################################
             #If no GO terms are found, put in "NA"#
@@ -2012,9 +2035,13 @@ sub GOs_in_common
                 $neq_counter = "NA";
             }
             $common{$seq} = $eq_counter . q{ } . $neq_counter;
+            chomp $common_prop;
+            chomp $ncommon_prop;
+            $textcommon{$seq}  = $common_prop;
+            $textncommon{$seq} = $ncommon_prop;
         }
     }
-    return $one_gos, %common;
+    return $one_gos, %common, %textcommon, %textncommon;
 }
 #####################################################
 #Calculates the time needed for the job to complete.#

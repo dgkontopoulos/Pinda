@@ -92,9 +92,9 @@ charset="utf-8"></script><script type="text/javascript" charset="utf-8">
 <body background='../background.jpg'>
 <LINK REL='SHORTCUT ICON' HREF='../pinda.ico'>
 <center><br><a href='http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi'>
-<img src='http://orion.mbg.duth.gr/Pinda/pindalogo.png'></a><br>
+<img src='http://orion.mbg.duth.gr/Pinda/pindalogo.png'></a><br><br>
+<font size=2><a href='http://orion.mbg.duth.gr/Pinda/documentation.html'>About Pinda...</a></font>
 <p style='width: 500px; text-align:center;margin-bottom:1px;margin-top:1px'>
-<br>
 <hr/>
 </p>
 </center>
@@ -1494,6 +1494,7 @@ EMAIL_END
             #################
             #Alignment only.#
             #################
+            tcoffee( $sequences, $fnaln, $email );
             alarm 0;
             print <<"ENDHTML";
             -->
@@ -1513,7 +1514,6 @@ ENDHTML
             </center>
 EMAIL_END
 
-            tcoffee( $sequences, $fnaln, $email );
             print <<"ENDHTML";
                 <center><br><font size='3' face='Georgia' color='330033'><br>
                 <a href=../results/final_alns/multalign/$prid.aln>

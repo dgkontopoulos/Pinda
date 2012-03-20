@@ -46,7 +46,9 @@ use File::stat;
 use FreezeThaw qw(freeze thaw);
 use List::MoreUtils qw(uniq);
 use LWP::Simple qw(get);
+use Math::Cephes qw(:all);
 use MIME::Lite;
+use Statistics::Basic qw(:all nofill);
 use Sys::CPU;
 use Time::localtime;
 
@@ -1000,14 +1002,7 @@ elsif ($query->param('organism')
         #########################################################
         #Alignment, NJ tree plotting, bootstrapping and parsing.#
         #########################################################
-        if ( $sequences_number >= 50 || $db =~ /nt[.]fasta/ )
-        {
-            tcoffee( $sequences, $fnaln, $email2, 0 );
-        }
-        else
-        {
-            tcoffee( $sequences, $fnaln, $email2, 1 );
-        }
+        tcoffee( $sequences, $fnaln, $email2 );
         system("clustalw -INFILE=$fnaln -OUTFILE=$ph -tree") == 0 or die $?;
         system(
 "clustalw -INFILE=$fnaln -OUTFILE=$phb -bootstrap=1000 -bootlabels=node"
@@ -1045,6 +1040,11 @@ elsif ($query->param('organism')
 
         parser( "../parsing/$prid.tmp", "../parsing/$prid\_1.tmp",
             "../parsing/$prid\_2.tmp" );
+
+        #########################################
+        #Compute probabilities for duplications.#
+        #########################################
+        compute_probability(@candidate);
         if ( $db !~ /nt[.]fasta/ )
         {
             ##############################
@@ -1079,14 +1079,16 @@ EMAIL_END
             print <<"ENDHTML";
             <a href=http://www.uniprot.org/uniprot/$one>
             $one</a>.</center></th>
-            <th><center>Confidence Value</center></th>
+            <th><center>Z Value</center></th>
+            <th><center>Probability</center></th>
             <th>GOs in common (out of $one_gos)</th>
             <th>GOs not found in $one</th></tr>
 ENDHTML
             $email_data .= <<"EMAIL_END";
             <a href=http://www.uniprot.org/uniprot/$one>
             $one</a>.</center></th>
-            <th><center>Confidence Value</center></th>
+            <th><center>Z Value</center></th>
+            <th><center>Probability</center></th>
             <th>GOs in common (out of $one_gos)</th>
             <th>GOs not found in $one</th></tr>
 EMAIL_END
@@ -1120,9 +1122,9 @@ ENDHTML
 EMAIL_END
             }
         }
-        ############################
-        #Table of Confidence Value.#
-        ############################
+        ##################################
+        #Table of Z Values/Probabilities.#
+        ##################################
         my $top_can;
         #################
         #Input sequence.#
@@ -1138,10 +1140,79 @@ EMAIL_END
             #List every sequence, except for the input one.#
             ################################################
             if (   $can !~ /$starting_point/
-                && $can =~ /(\d?\d?\d?.?\d+e?-?\d*) (\w+)/ )
+                && $can =~
+                /(-?\d?\d?\d?.?\d+e?-?\d*) (\d?\d?\d?.?\d+e?-?\d*) (\w+)/ )
             {
-                my $conf_temp = $1;
-                my $uni_temp  = $2;
+                my $z_temp    = $1;
+                my $conf_temp = $2;
+                my $uni_temp  = $3;
+                ###################################
+                #Color the html table alternately.#
+                ###################################
+                if ( $tdcounter == 1 )
+                {
+                    $tdbg      = 'F8FBFE';
+                    $tdcounter = 0;
+                }
+                else
+                {
+                    $tdbg = 'EAF1FB';
+                    $tdcounter++;
+                }
+                if ( $db !~ /nt[.]fasta/ )
+                {
+                    print
+"<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$3>$3</a>
+</center></td>";
+                    $email_data .=
+"<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$3>$3</a>
+</center></td>";
+                }
+                else
+                {
+                    if ( $uni_temp =~ /^\D{2}\_/ )
+                    {
+                        print
+"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>";
+                        $email_data .=
+"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>";
+                    }
+                    else
+                    {
+                        print
+"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>";
+                        $email_data .=
+"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>";
+                    }
+                }
+                printf
+'<td align=left><center>%5.2f</center></td><td align=left><center>%5.1f%%</center></td>',
+                  $z_temp, $conf_temp;
+
+                $email_data .=
+                  sprintf
+'<td align=left><center>%5.2f</center></td><td align=left><center>%5.1f%%</center></td>',
+                  $z_temp, $conf_temp;
+                if ( $db !~ /nt[.]fasta/ )
+                {
+                    if ( $common{$uni_temp} =~ /(\w+)\s(\w+)/ )
+                    {
+                        print <<"ENDHTML";
+						<td title="$textcommon{$uni_temp}"><center>$1</center></td>
+						<td title="$textncommon{$uni_temp}"><center>$2</center></td></tr>
+ENDHTML
+                    }
+                }
+            }
+            elsif ($can !~ /$starting_point/
+                && $can =~ /(-?\d?\d?\d?.?\d+e?-?\d*) (\w+)/ )
+            {
+                my $z_temp   = $1;
+                my $uni_temp = $2;
                 ###################################
                 #Color the html table alternately.#
                 ###################################
@@ -1185,12 +1256,12 @@ EMAIL_END
 </center></td>";
                     }
                 }
-                printf '<td align=left><center>%5.1f%%</center></td>',
-                  $conf_temp / $top_can * 100;
+                printf '<td align=left><center>%5.2f</center></td><td></td>',
+                  $z_temp;
 
                 $email_data .=
-                  sprintf '<td align=left><center>%5.1f%%</center></td></tr>',
-                  $conf_temp / $top_can * 100;
+                  sprintf '<td align=left><center>%5.2f</center></td><td></td>',
+                  $z_temp;
                 if ( $db !~ /nt[.]fasta/ )
                 {
                     if ( $common{$uni_temp} =~ /(\w+)\s(\w+)/ )
@@ -1203,6 +1274,7 @@ ENDHTML
                 }
             }
         }
+
         print '</table>';
         #############
         #Drawn tree.#
@@ -1225,7 +1297,7 @@ EMAIL_END
             ##########################################
             #Alignment, NJ-tree plotting and parsing.#
             ##########################################
-            tcoffee( $sequences, $fnaln, $email2, 1 );
+            tcoffee( $sequences, $fnaln, $email2 );
             system("clustalw -INFILE=$fnaln -OUTFILE=$ph -tree") == 0 or die $?;
             rename "../results/final_alns/multalign/$prid.ph",
               "../results/trees/phs/$prid.ph"
@@ -1505,24 +1577,9 @@ sub tcoffee
     $ENV{TMP}             = '/var/www/Pinda/t-coffee/dir_4_t-coffee/tmp';
     $ENV{NO_ERROR_REPORT_4_TCOFFEE} = '1';
     $ENV{NO_WARNING_4_TCOFFEE}      = '1';
-    ############################################################
-    #Run a slow alignment algorithm for large or big data sets.#
-    ############################################################
-    if ( $_[3] == '0' )
-    {
-        system(
-"/usr/local/bin/t_coffee -infile $_[0] -output=clustal -outfile $_[1] -proxy -email=$_[2] -special_mode low_memory -newtree=/tmp/1.dnd"
-        );
-    }
-    ######################################
-    #Normal T-Coffee alignment otherwise.#
-    ######################################
-    else
-    {
-        system(
+    system(
 "/usr/local/bin/t_coffee -infile $_[0] -output=clustal -outfile $_[1] -proxy -email=$_[2] -newtree=/tmp/1.dnd"
-        );
-    }
+    );
     return 0;
 }
 
@@ -1979,6 +2036,57 @@ sub parser
     return @candidate, @cand_sans, $starting_point;
 }
 
+############################################################
+#Calculate the Z-values and the probabilities for each hit.#
+############################################################
+sub compute_probability
+{
+    my @numbers;
+    my $numcounter = 0;
+    ############################
+    #Get the Confidence values.#
+    ############################
+    foreach my $can (@candidate)
+    {
+        if (   $can !~ /$starting_point/
+            && $can =~ /(\d?\d?\d?.?\d+e?-?\d*) \w+/ )
+        {
+            $numbers[$numcounter] = $1;
+            $numcounter++;
+        }
+    }
+    ############################################
+    #Calculate the mean and standard deviation.#
+    ############################################
+    my $mean               = mean(@numbers);
+    my $standard_deviation = stddev(@numbers);
+    foreach my $can (@candidate)
+    {
+        if (   $can !~ /$starting_point/
+            && $can =~ /(\d?\d?\d?.?\d+e?-?\d*) (\w+)/ )
+        {
+			#####################
+			#Calculate Z-values.#
+			#####################
+            my $z = ( $1 - $mean ) / $standard_deviation;
+            ###################################################
+            #For positive Z-values, calculate the probability.#
+            ###################################################
+            if ( $z > 0 )
+            {
+                my $erf  = erfc($z);
+                my $prob = ( 1 - $erf ) * 100;
+                $can = $z . q{ } . $prob . q{ } . $2;
+            }
+            else
+            {
+                $can = $z . q{ } . $2;
+            }
+        }
+    }
+    return @candidate;
+}
+
 ##########################################################################
 #Find the GOs shared between the input sequence and every other sequence.#
 ##########################################################################
@@ -2065,6 +2173,7 @@ sub GOs_in_common
     }
     return $one_gos, %common, %textcommon, %textncommon;
 }
+
 #####################################################
 #Calculates the time needed for the job to complete.#
 #####################################################

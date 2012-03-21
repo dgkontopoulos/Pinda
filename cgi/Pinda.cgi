@@ -56,9 +56,9 @@ use strict;
 use warnings;
 
 my (
-    $db,             $one,       $one_gos,   $sequences_number,
-    $starting_point, @candidate, @cand_sans, %common,
-    %textcommon,     %textncommon
+    $db,             $one,        $one_gos,   $sequences_number,
+    $starting_point, @candidate,  @cand_sans, @realign,
+    %common,         %textcommon, %textncommon
 );
 
 #open STDERR, '>', '/dev/null' or die $!;
@@ -1045,6 +1045,23 @@ elsif ($query->param('organism')
         #Compute probabilities for duplications.#
         #########################################
         compute_probability(@candidate);
+        my $realign_num = @realign;
+        if ( $realign_num >= 1 )
+        {
+            open $sequences_fh, '>', $sequences or die $!;
+            my $one_dbfetch = get("http://www.uniprot.org/uniprot/$one.fasta");
+            $one_dbfetch =~ s/$one/***$one***/;
+            print {$sequences_fh} $one_dbfetch;
+            foreach my $reseq (@realign)
+            {
+                my $dbfetch =
+                  get("http://www.uniprot.org/uniprot/$reseq.fasta");
+                print {$sequences_fh} $dbfetch;
+            }
+            close $sequences_fh or die $!;
+            $fnaln .= '2';
+            tcoffee( $sequences, $fnaln, $email2 );
+        }
         if ( $db !~ /nt[.]fasta/ )
         {
             ##############################
@@ -1059,7 +1076,16 @@ elsif ($query->param('organism')
         print <<"ENDHTML";
         -->
         <center><br><font size='3' face='Georgia' color='330033'>
-        <a href=../results/final_alns/multalign/$prid.aln>T-Coffee Alignment</a>
+        <a href=../results/final_alns/multalign/$prid.aln>Alignment of all hits</a>
+ENDHTML
+
+        if ( $realign_num >= 1 )
+        {
+            print <<"ENDHTML";
+         | <a href=../results/final_alns/multalign/$prid.aln2>Alignment of top hits</a>
+ENDHTML
+        }
+        print <<"ENDHTML";
         </font>
         <br><br>
         <table border='1'>
@@ -2043,6 +2069,7 @@ sub compute_probability
 {
     my @numbers;
     my $numcounter = 0;
+    my $re         = 0;
     ############################
     #Get the Confidence values.#
     ############################
@@ -2065,9 +2092,9 @@ sub compute_probability
         if (   $can !~ /$starting_point/
             && $can =~ /(\d?\d?\d?.?\d+e?-?\d*) (\w+)/ )
         {
-			#####################
-			#Calculate Z-values.#
-			#####################
+            #####################
+            #Calculate Z-values.#
+            #####################
             my $z = ( $1 - $mean ) / $standard_deviation;
             ###################################################
             #For positive Z-values, calculate the probability.#
@@ -2077,6 +2104,8 @@ sub compute_probability
                 my $erf  = erfc($z);
                 my $prob = ( 1 - $erf ) * 100;
                 $can = $z . q{ } . $prob . q{ } . $2;
+                $realign[$re] = $2;
+                $re++;
             }
             else
             {
@@ -2084,7 +2113,7 @@ sub compute_probability
             }
         }
     }
-    return @candidate;
+    return @candidate, @realign;
 }
 
 ##########################################################################

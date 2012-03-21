@@ -106,4 +106,4 @@ else
       fi
    done
 fi
-exit
+exit 0

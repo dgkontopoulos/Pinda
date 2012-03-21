@@ -45,3 +45,4 @@ then
 fi
 
 rm /tmp/whut
+exit 0

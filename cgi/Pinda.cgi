@@ -1049,13 +1049,51 @@ elsif ($query->param('organism')
         if ( $realign_num >= 1 )
         {
             open $sequences_fh, '>', $sequences or die $!;
-            my $one_dbfetch = get("http://www.uniprot.org/uniprot/$one.fasta");
+            my $one_dbfetch;
+            if ( $db =~ /nt[.]fasta/ )
+            {
+                if ( $one =~ /^\D{2}\_/ )
+                {
+                    $one_dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$one&format=fasta&style=raw"
+                    );
+                }
+                else
+                {
+                    $one_dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$one&format=fasta&style=raw"
+                    );
+                }
+            }
+            else
+            {
+                $one_dbfetch = get("http://www.uniprot.org/uniprot/$one.fasta");
+            }
             $one_dbfetch =~ s/$one/***$one***/;
             print {$sequences_fh} $one_dbfetch;
+            my $dbfetch;
             foreach my $reseq (@realign)
             {
-                my $dbfetch =
-                  get("http://www.uniprot.org/uniprot/$reseq.fasta");
+                if ( $db =~ /nt[.]fasta/ )
+                {
+                    if ( $one =~ /^\D{2}\_/ )
+                    {
+                        $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$reseq&format=fasta&style=raw"
+                        );
+                    }
+                    else
+                    {
+                        $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$reseq&format=fasta&style=raw"
+                        );
+                    }
+                }
+                else
+                {
+                    $dbfetch =
+                      get("http://www.uniprot.org/uniprot/$reseq.fasta");
+                }
                 print {$sequences_fh} $dbfetch;
             }
             close $sequences_fh or die $!;
@@ -1603,9 +1641,18 @@ sub tcoffee
     $ENV{TMP}             = '/var/www/Pinda/t-coffee/dir_4_t-coffee/tmp';
     $ENV{NO_ERROR_REPORT_4_TCOFFEE} = '1';
     $ENV{NO_WARNING_4_TCOFFEE}      = '1';
-    system(
+    if ( $db =~ /nt[.]fasta/ || $sequences_number >= 40 )
+    {
+        system(
+"/usr/local/bin/t_coffee -infile $_[0] -output=clustal -outfile $_[1] -proxy -email=$_[2] -newtree=/tmp/1.dnd –dp_mode myers_miller_pair_wise"
+        );
+    }
+    else
+    {
+        system(
 "/usr/local/bin/t_coffee -infile $_[0] -output=clustal -outfile $_[1] -proxy -email=$_[2] -newtree=/tmp/1.dnd"
-    );
+        );
+    }
     return 0;
 }
 

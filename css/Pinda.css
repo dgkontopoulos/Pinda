@@ -176,6 +176,11 @@
 .dk_ie6 .dk_options {
   right: 0;
 }
+
+.fieldset-auto-width {
+  display: inline-block;
+}
+
 .clear{
 	clear: both;
 	height: 0;

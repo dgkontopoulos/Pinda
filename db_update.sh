@@ -22,7 +22,7 @@
 ##########################################################################
 mkdir /usr/local/databases/Swissprot.1/
 cd /usr/local/databases/Swissprot.1/
-wget ftp://ftp.ebi.ac.uk/pub/databases/uniprot/knowledgebase/uniprot_sprot.fasta.gz
+nice -n +19 wget ftp://ftp.ebi.ac.uk/pub/databases/uniprot/knowledgebase/uniprot_sprot.fasta.gz
 
 ################################################################
 #If wget does not finish properly, mail someone to take a look.#
@@ -32,17 +32,17 @@ if [ "$?" -ne "0" ]; then
    mail dimikont2@mbg.duth.gr -s 'DB fetching error' < /tmp/tmp
    rm /tmp/tmp
 else
-   gunzip uniprot_sprot.fasta.gz
+   nice -n +19 gunzip uniprot_sprot.fasta.gz
    mkdir /usr/local/databases/UniProt.1/
    cp uniprot_sprot.fasta ../UniProt.1/
-   makeblastdb -in uniprot_sprot.fasta -dbtype prot -parse_seqids
+   nice -n +19 makeblastdb -in uniprot_sprot.fasta -dbtype prot -parse_seqids
    rm uniprot_sprot.fasta
    
    ##########################################################################
    #Get the TrEMBL db, concatenate it with the Swiss-Prot one and format it.#
    ##########################################################################
    cd ../UniProt.1/
-   wget ftp://ftp.ebi.ac.uk/pub/databases/uniprot/knowledgebase/uniprot_trembl.fasta.gz
+   nice -n +19 wget ftp://ftp.ebi.ac.uk/pub/databases/uniprot/knowledgebase/uniprot_trembl.fasta.gz
    
    ################################################################
    #If wget does not finish properly, mail someone to take a look.#
@@ -52,10 +52,10 @@ else
       mail dimikont2@mbg.duth.gr -s 'DB fetching error' < /tmp/tmp
       rm /tmp/tmp
    else
-      gunzip uniprot_trembl.fasta.gz
+      nice -n +19 gunzip uniprot_trembl.fasta.gz
       cat uniprot_sprot.fasta uniprot_trembl.fasta > UniProt.fasta
       rm -rf uniprot_sprot.fasta uniprot_trembl.fasta
-      makeblastdb -in UniProt.fasta -dbtype prot -parse_seqids
+      nice -n +19 makeblastdb -in UniProt.fasta -dbtype prot -parse_seqids
       rm UniProt.fasta
       
       ################################################
@@ -80,7 +80,7 @@ fi
 ####################################
 mkdir /usr/local/databases/nt.1/
 cd /usr/local/databases/nt.1/
-wget ftp://ftp.ncbi.nih.gov/blast/db/FASTA/nt.gz
+nice -n +19 wget ftp://ftp.ncbi.nih.gov/blast/db/FASTA/nt.gz
 
 ################################################################
 #If wget does not finish properly, mail someone to take a look.#
@@ -90,9 +90,9 @@ if [ "$?" -ne "0" ]; then
    mail dimikont2@mbg.duth.gr -s 'DB fetching error' < /tmp/tmp
    rm /tmp/tmp
 else
-   gunzip nt.gz
+   nice -n +19 gunzip nt.gz
    mv nt nt.fasta
-   makeblastdb -in nt.fasta -dbtype nucl -parse_seqids
+   nice -n +19 makeblastdb -in nt.fasta -dbtype nucl -parse_seqids
    rm nt.fasta
    
    while true

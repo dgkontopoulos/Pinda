@@ -118,11 +118,11 @@ if ( $db !~ /nt[.]fasta/ )
     $out = '../outs/psiblast/' . $prid . '.tmp';
     my $psib = 'blastpgp';
 
-    #############################################################################
+   #############################################################################
    #Run the BLAST+ executable through the compatibility layer of the old BLAST #
    #programs, so as to keep the maximum iterations option that, at first sight,#
    #is missing from the BLAST+ ones.                                           #
-    #############################################################################
+   #############################################################################
     if ( $lcr_filtering == 1 )
     {
         system(
@@ -1348,17 +1348,81 @@ EMAIL_END
         }
     }
 }
-my $end_timer = time;
-my $run_time  = $end_timer - $start_timer;
 ##############################################
 #Calculate how much time it took for the job.#
 ##############################################
-job_timer($run_time);
+my $end_timer   = time;
+my $run_time    = $end_timer - $start_timer;
+my $job_average = "/var/www/Pinda/job_times";
+my ( $pr_jobs, $pr_time, $dn_jobs, $dn_time );
+open my $job_average_fh, '<', $job_average;
+local $/ = "\n";
+while ( my $line = <$job_average_fh> )
+{
+
+    if ( $line =~ /Protein Jobs[:] (\d+) Average Time[:] (\d+)/ )
+    {
+        $pr_jobs = $1;
+        $pr_time = $2;
+    }
+    elsif ( $line =~ /DNA Jobs[:] (\d+) Average Time[:] (\d+)/ )
+    {
+        $dn_jobs = $1;
+        $dn_time = $2;
+    }
+}
+close $job_average_fh;
+
+if ( $db =~ /nt[.]fasta/ )
+{
+    $dn_time = ( ( $dn_jobs * $dn_time ) + $run_time ) / ( $dn_jobs + 1 );
+    $dn_jobs++;
+}
+else
+{
+    $pr_time = ( ( $pr_jobs * $pr_time ) + $run_time ) / ( $pr_jobs + 1 );
+    $pr_jobs++;
+}
+open $job_average_fh, '>', $job_average;
+print {$job_average_fh} "Protein Jobs: $pr_jobs Average Time: $pr_time\n";
+print {$job_average_fh} "DNA Jobs: $dn_jobs Average Time: $dn_time\n";
+close $job_average_fh;
 ##############
 #Send e-mail.#
 ##############
 send_email( $one, $email );
+
 $email_data .= "</center>\n</body>\n</html>";
+my $job_counting = "/var/www/Pinda/running_jobs";
+my $protein_jobs;
+my $dna_jobs;
+open my $job_counting_fh, '<', $job_counting;
+local $/ = "\n";
+while ( my $line = <$job_counting_fh> )
+{
+
+    if ( $line =~ /Protein[:] (\d+)/ )
+    {
+        $protein_jobs = $1;
+    }
+    elsif ( $line =~ /DNA[:] (\d+)/ )
+    {
+        $dna_jobs = $1;
+    }
+}
+close $job_counting_fh;
+if ( $db =~ /nt[.]fasta/ )
+{
+    $dna_jobs--;
+}
+else
+{
+    $protein_jobs--;
+}
+open $job_counting_fh, '>', $job_counting;
+print {$job_counting_fh} "Protein: $protein_jobs\n";
+print {$job_counting_fh} "DNA: $dna_jobs\n";
+close $job_counting_fh;
 
 #############################
 #Multiple Sequence Alignment#
@@ -2067,148 +2131,6 @@ sub GOs_in_common
         }
         return %texts, %texts2;
     }
-}
-
-#####################################################
-#Calculates the time needed for the job to complete.#
-#####################################################
-sub job_timer
-{
-    my ( $hours, $minutes, $seconds );
-    if ( $_[0] > 3600 )
-    {
-        $hours = $_[0] / 3600;
-        $_[0] %= 3600;
-    }
-    if ( $_[0] > 60 )
-    {
-        $minutes = $_[0] / 60;
-        $_[0] %= 60;
-    }
-    if ( $_[0] > 0 )
-    {
-        $seconds = $_[0];
-    }
-    print '<br><br><font size="2" face="Courier New"><center>This job took ';
-    if ( defined $hours && defined $minutes && defined $seconds )
-    {
-        if ( $hours >= 2 )
-        {
-            printf '<b>%.0f hours</b>,', $hours;
-        }
-        else
-        {
-            printf '<b>1 hour</b>,';
-        }
-        if ( $minutes >= 2 )
-        {
-            printf ' <b>%.0f minutes</b>', $minutes;
-        }
-        else
-        {
-            printf ' <b>1 minute</b>';
-        }
-        if ( $seconds >= 2 )
-        {
-            printf ' and <b>%.0f seconds</b>.', $seconds;
-        }
-        else
-        {
-            printf ' and <b>1 second</b>.';
-        }
-    }
-    elsif ( defined $hours && defined $minutes )
-    {
-        if ( $hours >= 2 )
-        {
-            printf '<b>%.0f hours</b>', $hours;
-        }
-        else
-        {
-            printf '<b>1 hour</b>';
-        }
-        if ( $minutes >= 2 )
-        {
-            printf ' and <b>%.0f minutes</b>.', $minutes;
-        }
-        else
-        {
-            printf ' and <b>1 minute</b>.';
-        }
-    }
-    elsif ( defined $hours && defined $seconds )
-    {
-        if ( $hours >= 2 )
-        {
-            printf '<b>%.0f hours</b>', $hours;
-        }
-        else
-        {
-            printf '<b>1 hour</b>';
-        }
-        if ( $seconds >= 2 )
-        {
-            printf ' and <b>%.0f seconds</b>.', $seconds;
-        }
-        else
-        {
-            printf ' and <b>1 second</b>.';
-        }
-    }
-    elsif ( defined $minutes && defined $seconds )
-    {
-        if ( $minutes >= 2 )
-        {
-            printf '<b>%.0f minutes</b>', $minutes;
-        }
-        else
-        {
-            printf '<b>1 minute</b>';
-        }
-        if ( $seconds >= 2 )
-        {
-            printf ' and <b>%.0f seconds</b>.', $seconds;
-        }
-        else
-        {
-            printf ' and <b>1 second</b>.';
-        }
-    }
-    elsif ( defined $hours )
-    {
-        if ( $hours >= 2 )
-        {
-            printf '<b>%.0f hours</b>.', $hours;
-        }
-        else
-        {
-            printf '<b>1 hour</b>.';
-        }
-    }
-    elsif ( defined $minutes )
-    {
-        if ( $minutes >= 2 )
-        {
-            printf '<b>%.0f minutes</b>.', $minutes;
-        }
-        else
-        {
-            printf '<b>1 minute</b>.';
-        }
-    }
-    elsif ( defined $seconds )
-    {
-        if ( $seconds >= 2 )
-        {
-            printf '<b>%.0f seconds</b>.', $seconds;
-        }
-        else
-        {
-            printf '<b>1 second</b>.';
-        }
-    }
-    print '</font></center>';
-    return 0;
 }
 
 ###########################

@@ -713,4 +713,195 @@ ENDHTML
 		<br>We hope you know what you're doing...</font></center>
 ENDHTML
     }
+
+    my $job_counting = "../running_jobs";
+    my $protein_jobs;
+    my $dna_jobs;
+    open my $job_counting_fh, '<', $job_counting;
+    local $/ = "\n";
+    while ( my $line = <$job_counting_fh> )
+    {
+        if ( $line =~ /Protein[:] (\d+)/ )
+        {
+            $protein_jobs = $1;
+        }
+        elsif ( $line =~ /DNA[:] (\d+)/ )
+        {
+            $dna_jobs = $1;
+        }
+    }
+    close $job_counting_fh;
+    if ( $database =~ /nt/ )
+    {
+        $dna_jobs++;
+    }
+    else
+    {
+        $protein_jobs++;
+    }
+    open $job_counting_fh, '>', $job_counting;
+    print {$job_counting_fh} "Protein: $protein_jobs\n";
+    print {$job_counting_fh} "DNA: $dna_jobs\n";
+    close $job_counting_fh;
+
+    my ( $pr_time, $dn_time );
+    my $job_average = "/var/www/Pinda/job_times";
+    open my $job_average_fh, '<', $job_average;
+    local $/ = "\n";
+    while ( my $line = <$job_average_fh> )
+    {
+        if ( $line =~ /Protein Jobs[:] \d+ Average Time[:] (\d+)/ )
+        {
+            $pr_time = $1;
+        }
+        elsif ( $line =~ /DNA Jobs[:] \d+ Average Time[:] (\d+)/ )
+        {
+            $dn_time = $1;
+        }
+    }
+    close $job_average_fh;
+    my $estimated_time;
+    $estimated_time =
+      ( ( $protein_jobs * $pr_time ) + ( $dna_jobs * $dn_time ) ) * 2;
+    job_timer($estimated_time);
+}
+
+sub job_timer
+{
+    my ( $hours, $minutes, $seconds );
+    if ( $_[0] > 3600 )
+    {
+        $hours = $_[0] / 3600;
+        $_[0] %= 3600;
+    }
+    if ( $_[0] > 60 )
+    {
+        $minutes = $_[0] / 60;
+        $_[0] %= 60;
+    }
+    if ( $_[0] > 0 )
+    {
+        $seconds = $_[0];
+    }
+    print '<br><br><font size="2" face="Courier New"><center>
+    Estimated time until job completion: ';
+    if ( defined $hours && defined $minutes && defined $seconds )
+    {
+        if ( $hours >= 2 )
+        {
+            printf '<b>%.0f hours</b>,', $hours;
+        }
+        else
+        {
+            printf '<b>1 hour</b>,';
+        }
+        if ( $minutes >= 2 )
+        {
+            printf ' <b>%.0f minutes</b>', $minutes;
+        }
+        else
+        {
+            printf ' <b>1 minute</b>';
+        }
+        if ( $seconds >= 2 )
+        {
+            printf ' and <b>%.0f seconds</b>.', $seconds;
+        }
+        else
+        {
+            printf ' and <b>1 second</b>.';
+        }
+    }
+    elsif ( defined $hours && defined $minutes )
+    {
+        if ( $hours >= 2 )
+        {
+            printf '<b>%.0f hours</b>', $hours;
+        }
+        else
+        {
+            printf '<b>1 hour</b>';
+        }
+        if ( $minutes >= 2 )
+        {
+            printf ' and <b>%.0f minutes</b>.', $minutes;
+        }
+        else
+        {
+            printf ' and <b>1 minute</b>.';
+        }
+    }
+    elsif ( defined $hours && defined $seconds )
+    {
+        if ( $hours >= 2 )
+        {
+            printf '<b>%.0f hours</b>', $hours;
+        }
+        else
+        {
+            printf '<b>1 hour</b>';
+        }
+        if ( $seconds >= 2 )
+        {
+            printf ' and <b>%.0f seconds</b>.', $seconds;
+        }
+        else
+        {
+            printf ' and <b>1 second</b>.';
+        }
+    }
+    elsif ( defined $minutes && defined $seconds )
+    {
+        if ( $minutes >= 2 )
+        {
+            printf '<b>%.0f minutes</b>', $minutes;
+        }
+        else
+        {
+            printf '<b>1 minute</b>';
+        }
+        if ( $seconds >= 2 )
+        {
+            printf ' and <b>%.0f seconds</b>.', $seconds;
+        }
+        else
+        {
+            printf ' and <b>1 second</b>.';
+        }
+    }
+    elsif ( defined $hours )
+    {
+        if ( $hours >= 2 )
+        {
+            printf '<b>%.0f hours</b>.', $hours;
+        }
+        else
+        {
+            printf '<b>1 hour</b>.';
+        }
+    }
+    elsif ( defined $minutes )
+    {
+        if ( $minutes >= 2 )
+        {
+            printf '<b>%.0f minutes</b>.', $minutes;
+        }
+        else
+        {
+            printf '<b>1 minute</b>.';
+        }
+    }
+    elsif ( defined $seconds )
+    {
+        if ( $seconds >= 2 )
+        {
+            printf '<b>%.0f seconds</b>.', $seconds;
+        }
+        else
+        {
+            printf '<b>1 second</b>.';
+        }
+    }
+    print '</font></center>';
+    return 0;
 }

@@ -84,6 +84,7 @@ if ( $one eq 'QUERY' )
 my $SWISSPROT = '/usr/local/databases/Swissprot/uniprot_sprot.fasta';
 my $UNIPROT   = '/usr/local/databases/UniProt/UniProt.fasta';
 my $NT        = '/usr/local/databases/nt/nt.fasta';
+my $database  = $db;
 
 if ( $db eq 'Swiss-Prot' )
 {
@@ -97,11 +98,29 @@ elsif ( $db eq 'nt' )
 {
     $db = $NT;
 }
-my $email_data = <<'EMAIL_END';
+
+my $input = '/var/www/Pinda/tmps/blast/' . $prid . '.tmp';
+open my $input_fh, '<', $input or die $!;
+my $line_input;
+{
+	local $/ = undef;
+	$line_input = <$input_fh>;
+}
+close $input_fh;
+do
+{
+	$line_input =~ s/\n/<br>/;
+}while ($line_input =~ /\n/);
+
+my $email_data = <<"EMAIL_END";
 <center><br>
 <a href='http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi'>
 <img src='http://orion.mbg.duth.gr/Pinda/pindalogo.png'></a>
-<br>
+</center><br><br><br><hr />
+<b>Input Sequence:</b><br>$line_input<br><hr />
+<b>Organism:</b> $organism<br><hr />
+<b>Database:</b> $database<hr /><br>
+<center>
 EMAIL_END
 
 ##############################
@@ -116,23 +135,17 @@ if ( $db !~ /nt[.]fasta/ )
     my $e_th = '0.00000000001';
 
     $out = '../outs/psiblast/' . $prid . '.tmp';
-    my $psib = 'blastpgp';
-
-   #############################################################################
-   #Run the BLAST+ executable through the compatibility layer of the old BLAST #
-   #programs, so as to keep the maximum iterations option that, at first sight,#
-   #is missing from the BLAST+ ones.                                           #
-   #############################################################################
+    
     if ( $lcr_filtering == 1 )
     {
         system(
-"/usr/bin/legacy_blast $psib -i $tmp -b 7000 -j 50 -h $e_th -d $db -a $cpu_n -o $out -seg yes"
+"psiblast -query $tmp -num_alignments 7000 -num_iterations 50 -evalue $e_th -db $db -num_threads $cpu_n -out $out -seg yes"
         );
     }
     else
     {
         system(
-"/usr/bin/legacy_blast $psib -i $tmp -b 7000 -j 50 -h $e_th -d $db -a $cpu_n -o $out -seg no"
+"psiblast -query $tmp -num_alignments 7000 -num_iterations 50 -evalue $e_th -db $db -num_threads $cpu_n -out $out -seg no"
         );
     }
     #####################################################################
@@ -1306,9 +1319,10 @@ EMAIL_END
         $email_data .= <<"EMAIL_END";
             <center>
             <font size='3' face='Georgia' color='330033'><br><br>
-            The number of sequences for this particular organism is less than
-            three.<br><br>
-            <b>A dendrogram cannot be plotted.</b></font>
+            Only <b>two</b> similar sequences from <b>$organism</b>
+            have been identified.
+            <br><b>Phylogenetic analysis is meaningless therefore.</b>
+            </font>
             </center>
 EMAIL_END
 
@@ -2140,7 +2154,7 @@ sub send_email
 {
     my $msg = MIME::Lite->new(
         Subject => "Pinda Job Result: $_[0]",
-        From    => 'pinda@orion.mbg.duth.gr',
+        From    => 'Pinda@orion.mbg.duth.gr',
         To      => $_[1],
         Type    => 'text/html',
         Data    => $email_data

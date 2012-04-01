@@ -91,11 +91,12 @@ charset="utf-8"></script><script type="text/javascript" charset="utf-8">
 <body background='../background.jpg'>
 <LINK REL='SHORTCUT ICON' HREF='../pinda.ico'>
 <center><a href='http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi'>
-<img src='http://orion.mbg.duth.gr/Pinda/pindalogo.png'></a><br><br>
+<img src='http://orion.mbg.duth.gr/Pinda/pindalogo.png' width=354
+height=74 alt='Pipeline for INtraspecies Duplication Analysis'></a><br><br>
 <font size=3 face='Georgia' color='330033'>
 <i>Pinda is a Web service aiming to facilitate detection of<br>
 specific gene duplications in an organism species of choice.</i>
-</font><font size=2 face='Georgia' color='330033'>
+</font>
 <p style='width: 500px; text-align:center;margin-bottom:1px;margin-top:1px'>
 <hr/>
 </p>
@@ -103,11 +104,11 @@ specific gene duplications in an organism species of choice.</i>
 <div style="position:fixed;bottom:0;width:100%">
 <div style="width:300;margin:0px auto;">
 <hr /><center>
-<font size='3'>
+<font size='3' face='Georgia' color='330033'>
 <a href='http://orion.mbg.duth.gr/Pinda/documentation.html'>Documentation</a>
 | 
 <a href="https://github.com/dgkontopoulos/Pinda/">Source Code</a>
-| Built with <a href="http://www.perl.org/">Perl</a></center>
+| Built with <a href="http://www.perl.org/">Perl</a></font></center>
 </div></div>
 ENDHTML
 
@@ -123,13 +124,14 @@ if ( !$query->param )
     <center>
     <br><br>
     <form id = 'submit' method = 'post' action=http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi>
-    <fieldset class="fieldset-auto-width"><legend><font size='2'>Sequence Input</legend>
+    <fieldset class="fieldset-auto-width"><legend><font size='2'
+    face='Georgia' color='330033'>Sequence Input</font></legend>
     <font size='2' face='Georgia' color='330033'>
     <p style='width: 570px; text-align:left;margin-bottom:1px;margin-top:1px'>
     <b>Please enter a sequence.</b><br>
     </font><center>
     <textarea name='sequence' rows=7 cols=70 style='font-family:courier new'
-    ></textarea></center></p></fieldset><br><br>
+    ></textarea></center></fieldset><br><br>
     <input id='submit' TYPE='submit' value=' Continue '></form></center>
     
     <script type="text/javascript">
@@ -179,11 +181,11 @@ elsif ( !$query->param('button') && !$query->param('dropdown') )
         $string2 =~ s/\n//;
         $string2 =~ s/\s//;
     } while ( $string2 =~ /\n/ || $string2 =~ /\s/ );
-    if ( $string2 =~ /^[A|C|G|T]+$/ )
+    if ( $string2 =~ /^[A|C|G|T]+$/i )
     {
         $db = $NT;
     }
-    elsif ( $string2 =~ /^[R|H|K|D|E|S|T|N|Q|C|U|G|P||A|V|I|L|M|F|Y|W]+$/ )
+    elsif ( $string2 =~ /^[R|H|K|D|E|S|T|N|Q|C|U|G|P||A|V|I|L|M|F|Y|W]+$/i )
     {
         $db = $SWISSPROT;
     }
@@ -446,7 +448,9 @@ ENDHTML
 		<p style='width: 270px; text-align:left;margin-bottom:1px;margin-top:1px'>
 		<center>
 		No organism could be identified.<br><br>
-		<b>Please enter an organism name or a Taxonomy ID here.</b><br>
+		<b>Please enter an organism name or a
+		<a href=http://www.ncbi.nlm.nih.gov/Taxonomy/>Taxonomy ID</a> here.
+		</b><br>
 		<center><input type='text' name='organism2' size="30" maxlength="60">
 		</fieldset>
 ENDHTML
@@ -472,7 +476,9 @@ ENDHTML
 		</select></center></p>
 		<br><br><br><font size='2' face='Georgia' color='330033'>
 		<p style='width: 270px; text-align:left;margin-bottom:1px;margin-top:1px'>
-		<b>or enter an organism name or a Taxonomy ID here.</b><br>
+		<b>or enter an organism name or a
+		<a href=http://www.ncbi.nlm.nih.gov/Taxonomy/>Taxonomy ID</a>
+		here.</b><br>
 		<center><input type='text' name='organism2' size="30" maxlength="60">
 		</input></center></fieldset>
 ENDHTML
@@ -508,7 +514,9 @@ ENDHTML
 	<font size='2' face='Georgia' color='330033'>
 	<p style='width: 270px; text-align:left;margin-bottom:1px;margin-top:1px'>
 	<center>
-	<b>Please enter an organism name or a Taxonomy ID here.</b><br>
+	<b>Please enter an organism name or a
+	<a href=http://www.ncbi.nlm.nih.gov/Taxonomy/>Taxonomy ID</a> 
+	here.</b><br>
 	<center><input type='text' name='organism2' size="30" maxlength="60">
 	</fieldset>
 ENDHTML
@@ -688,32 +696,6 @@ ENDHTML
     system("at -q Z -f $job_temp now");
     system("rm $job_temp");
 
-    print <<"ENDHTML";
-    <p style='width: 470px; text-align:center;margin-bottom:1px;margin-top:1px'>
-    <font size='3' face='Georgia' color='330033'>
-    <center><br><br><br>
-    <b>Your job has entered the queue.
-    <br>Results will be sent to you via email.</b></p></center>
-    </p></font>
-ENDHTML
-
-    if ( defined $note && $note == 1 )
-    {
-        print <<"ENDHTML";
-		<br><center><font size='2' face='Georgia' color='330033'>
-		<b>Note:</b> This Taxonomy ID does not belong to a species.
-		<br>We hope you know what you're doing...</font></center>
-ENDHTML
-    }
-    elsif ( defined $note && $note == 2 )
-    {
-        print <<"ENDHTML";
-		<br><center><font size='2' face='Georgia' color='330033'>
-		<b>Note:</b> The name that you entered does not correspond to one exact species.
-		<br>We hope you know what you're doing...</font></center>
-ENDHTML
-    }
-
     my $job_counting = "../running_jobs";
     my $protein_jobs;
     my $dna_jobs;
@@ -743,6 +725,7 @@ ENDHTML
     print {$job_counting_fh} "Protein: $protein_jobs\n";
     print {$job_counting_fh} "DNA: $dna_jobs\n";
     close $job_counting_fh;
+    my $rank = $protein_jobs + $dna_jobs;
 
     my ( $pr_time, $dn_time );
     my $job_average = "/var/www/Pinda/job_times";
@@ -763,8 +746,47 @@ ENDHTML
     my $estimated_time;
     $estimated_time =
       ( ( $protein_jobs * $pr_time ) + ( $dna_jobs * $dn_time ) ) * 2;
+      
+    print <<"ENDHTML";
+    <p style='width: 470px; text-align:center;margin-bottom:1px;margin-top:1px'>
+    <font size='3' face='Georgia' color='330033'>
+    <center><br><br><br>
+    <b>Your job has entered the queue with a rank of
+    <font size=5>#$rank</font>.
+    <br>Results will be sent to you via email.</b></p></center>
+    </p></font><font color='black'>
+ENDHTML
+
+    if ( defined $note && $note == 1 )
+    {
+        print <<"ENDHTML";
+		<br><center><font size='2' face='Georgia' color='330033'>
+		<b>Note:</b> This Taxonomy ID does not belong to a species.
+		<br>We hope you know what you're doing...</font></center>
+		<font color='black'>
+ENDHTML
+    }
+    elsif ( defined $note && $note == 2 )
+    {
+        print <<"ENDHTML";
+		<br><center><font size='2' face='Georgia' color='330033'>
+		<b>Note:</b> The name that you entered does not correspond to one exact species.
+		<br>We hope you know what you're doing...</font></center>
+		<font color='black'>
+ENDHTML
+    }
+    
     job_timer($estimated_time);
+    print <<"ENDHTML";
+    <br><br><br><center><font size='2'>
+    [<a href="http://orion.mbg.duth.gr/Pinda">Return to submission form</a>]
+    </font><br><br><br></center>
+ENDHTML
 }
+
+
+
+
 
 sub job_timer
 {

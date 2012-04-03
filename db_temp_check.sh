@@ -20,6 +20,9 @@
 #####################################################
 #Check for remaining database temporary directories.#
 #####################################################
+
+set -e
+
 touch /tmp/whut
 if [ -d "/usr/local/databases/Swissprot.1" ]
 then

@@ -103,14 +103,14 @@ my $input = '/var/www/Pinda/tmps/blast/' . $prid . '.tmp';
 open my $input_fh, '<', $input or die $!;
 my $line_input;
 {
-	local $/ = undef;
-	$line_input = <$input_fh>;
+    local $/ = undef;
+    $line_input = <$input_fh>;
 }
 close $input_fh;
 do
 {
-	$line_input =~ s/\n/<br>/;
-}while ($line_input =~ /\n/);
+    $line_input =~ s/\n/<br>/;
+} while ( $line_input =~ /\n/ );
 
 my $email_data = <<"EMAIL_END";
 <center><br>
@@ -119,9 +119,19 @@ my $email_data = <<"EMAIL_END";
 </center><br><br><br><hr />
 <b>Input Sequence:</b><br>$line_input<br><hr />
 <b>Organism:</b> $organism<br><hr />
-<b>Database:</b> $database<hr /><br>
-<center>
+<b>Database:</b> $database<hr /><br><center>
 EMAIL_END
+
+if ( $db =~ /nt[.]fasta/ )
+{
+	$email_data .= <<"EMAIL_END";
+	<img src='http://orion.mbg.duth.gr/Pinda/caution.png' width=45
+	height=40><br>
+	The nt database is partially non-redundant.<br>
+	You are advised to pay extra attention when interpreting the results.
+	<br>
+EMAIL_END
+}
 
 ##############################
 #Get the number of cpu cores.#
@@ -135,7 +145,7 @@ if ( $db !~ /nt[.]fasta/ )
     my $e_th = '0.00000000001';
 
     $out = '../outs/psiblast/' . $prid . '.tmp';
-    
+
     if ( $lcr_filtering == 1 )
     {
         system(
@@ -267,6 +277,19 @@ if ( $db !~ /nt[.]fasta/ )
                             $dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=uniprotkb&id=$acnumber&format=fasta&style=raw"
                             );
+                            if ( !( defined $dbfetch ) )
+                            {
+                                for ( 0 .. 3 )
+                                {
+                                    $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=uniprotkb&id=$acnumber&format=fasta&style=raw"
+                                    );
+                                    if ( defined $dbfetch )
+                                    {
+                                        last;
+                                    }
+                                }
+                            }
                             if ( defined $dbfetch && $dbfetch =~ /\n/ )
                             {
                                 $match_line = $';
@@ -354,6 +377,19 @@ else
                 $dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$accession&style=raw"
                 );
+                if ( !( defined $dbfetch ) )
+                {
+                    for ( 0 .. 3 )
+                    {
+                        $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$accession&style=raw"
+                        );
+                        if ( defined $dbfetch )
+                        {
+                            last;
+                        }
+                    }
+                }
 
                 ######################################
                 #Populate the organism dropdown list.#
@@ -377,6 +413,19 @@ else
                 $dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$accession&style=raw"
                 );
+                if ( !( defined $dbfetch ) )
+                {
+                    for ( 0 .. 3 )
+                    {
+                        $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$accession&style=raw"
+                        );
+                        if ( defined $dbfetch )
+                        {
+                            last;
+                        }
+                    }
+                }
 
                 ######################################
                 #Populate the organism dropdown list.#
@@ -415,12 +464,38 @@ else
                         $dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$accession&format=fasta&style=raw"
                         );
+                        if ( !( defined $dbfetch ) )
+                        {
+                            for ( 0 .. 3 )
+                            {
+                                $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$accession&format=fasta&style=raw"
+                                );
+                                if ( defined $dbfetch )
+                                {
+                                    last;
+                                }
+                            }
+                        }
                     }
                     else
                     {
                         $dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$accession&format=fasta&style=raw"
                         );
+                        if ( !( defined $dbfetch ) )
+                        {
+                            for ( 0 .. 3 )
+                            {
+                                $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$accession&format=fasta&style=raw"
+                                );
+                                if ( defined $dbfetch )
+                                {
+                                    last;
+                                }
+                            }
+                        }
                     }
                     if ( $dbfetch =~ /\n/ )
                     {
@@ -607,6 +682,19 @@ if ( $sequences_number > 3 )
                 $one_dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$one&format=fasta&style=raw"
                 );
+                if ( !( defined $one_dbfetch ) )
+                {
+                    for ( 0 .. 3 )
+                    {
+                        $one_dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$one&format=fasta&style=raw"
+                        );
+                        if ( defined $one_dbfetch )
+                        {
+                            last;
+                        }
+                    }
+                }
                 if ( $one_dbfetch =~ /\n/ )
                 {
                     $one_dbfetch = ">III" . $one . "III\n" . $' . "\n\n";
@@ -621,6 +709,19 @@ if ( $sequences_number > 3 )
                 $one_dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$one&format=fasta&style=raw"
                 );
+                if ( !( defined $one_dbfetch ) )
+                {
+                    for ( 0 .. 3 )
+                    {
+                        $one_dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$one&format=fasta&style=raw"
+                        );
+                        if ( defined $dbfetch )
+                        {
+                            last;
+                        }
+                    }
+                }
                 if ( $one_dbfetch =~ /\n/ )
                 {
                     $one_dbfetch = ">III" . $one . "III\n" . $' . "\n\n";
@@ -653,6 +754,19 @@ if ( $sequences_number > 3 )
                     $dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$reseq&format=fasta&style=raw"
                     );
+                    if ( !( defined $dbfetch ) )
+                    {
+                        for ( 0 .. 3 )
+                        {
+                            $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$reseq&format=fasta&style=raw"
+                            );
+                            if ( defined $dbfetch )
+                            {
+                                last;
+                            }
+                        }
+                    }
                     if ( $dbfetch =~ /\n/ )
                     {
                         $dbfetch = ">$reseq\n" . $' . "\n\n";
@@ -663,6 +777,19 @@ if ( $sequences_number > 3 )
                     $dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$reseq&format=fasta&style=raw"
                     );
+                    if ( !( defined $dbfetch ) )
+                    {
+                        for ( 0 .. 3 )
+                        {
+                            $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$reseq&format=fasta&style=raw"
+                            );
+                            if ( defined $dbfetch )
+                            {
+                                last;
+                            }
+                        }
+                    }
                     if ( $dbfetch =~ /\n/ )
                     {
                         $dbfetch = ">$reseq\n" . $' . "\n\n";
@@ -673,6 +800,18 @@ if ( $sequences_number > 3 )
             else
             {
                 $dbfetch = get("http://www.uniprot.org/uniprot/$reseq.fasta");
+                if ( !( defined $dbfetch ) )
+                {
+                    for ( 0 .. 3 )
+                    {
+                        $dbfetch =
+                          get("http://www.uniprot.org/uniprot/$reseq.fasta");
+                        if ( defined $dbfetch )
+                        {
+                            last;
+                        }
+                    }
+                }
             }
             print {$sequences_fh} $dbfetch . "\n";
         }
@@ -1004,12 +1143,51 @@ EMAIL_END
                     $one_dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$one&format=fasta&style=raw"
                     );
+                    if ( !( defined $one_dbfetch ) )
+                    {
+                        for ( 0 .. 3 )
+                        {
+                            $one_dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$one&format=fasta&style=raw"
+                            );
+                            if ( defined $one_dbfetch )
+                            {
+                                last;
+                            }
+                        }
+                    }
                 }
                 else
                 {
                     $one_dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$one&format=fasta&style=raw"
                     );
+                    if ( !( defined $one_dbfetch ) )
+                    {
+                        for ( 0 .. 3 )
+                        {
+                            $one_dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$one&format=fasta&style=raw"
+                            );
+                            if ( defined $one_dbfetch )
+                            {
+                                last;
+                            }
+                        }
+                    }
+                    if ( !( defined $one_dbfetch ) )
+                    {
+                        for ( 0 .. 3 )
+                        {
+                            $one_dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$one&format=fasta&style=raw"
+                            );
+                            if ( defined $one_dbfetch )
+                            {
+                                last;
+                            }
+                        }
+                    }
                 }
             }
             else
@@ -1036,12 +1214,38 @@ EMAIL_END
                         $dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$reseq&format=fasta&style=raw"
                         );
+                        if ( !( defined $dbfetch ) )
+                        {
+                            for ( 0 .. 3 )
+                            {
+                                $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$reseq&format=fasta&style=raw"
+                                );
+                                if ( defined $dbfetch )
+                                {
+                                    last;
+                                }
+                            }
+                        }
                     }
                     else
                     {
                         $dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$reseq&format=fasta&style=raw"
                         );
+                        if ( !( defined $dbfetch ) )
+                        {
+                            for ( 0 .. 3 )
+                            {
+                                $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$reseq&format=fasta&style=raw"
+                                );
+                                if ( defined $dbfetch )
+                                {
+                                    last;
+                                }
+                            }
+                        }
                     }
                 }
                 else
@@ -2023,9 +2227,22 @@ sub GOs_in_common
     {
         foreach my $seq (@cand_sans)
         {
+            chomp $seq;
             if ( $seq eq $one )
             {
                 my $dbfetch = get("http://www.uniprot.org/uniprot/$one.txt");
+                if ( !( defined $dbfetch ) )
+                {
+                    for ( 0 .. 3 )
+                    {
+                        $dbfetch =
+                          get("http://www.uniprot.org/uniprot/$one.txt");
+                        if ( defined $dbfetch )
+                        {
+                            last;
+                        }
+                    }
+                }
                 do
                 {
                     ############################################################
@@ -2053,6 +2270,19 @@ sub GOs_in_common
                 my $eq_counter   = 0;
                 my $res_counter  = 0;
                 my $dbfetch = get("http://www.uniprot.org/uniprot/$seq.txt");
+                if ( !( defined $dbfetch ) )
+                {
+
+                    for ( 0 .. 3 )
+                    {
+                        $dbfetch =
+                          get("http://www.uniprot.org/uniprot/$seq.txt");
+                        if ( defined $dbfetch )
+                        {
+                            last;
+                        }
+                    }
+                }
                 do
                 {
         ########################################################################
@@ -2105,6 +2335,7 @@ sub GOs_in_common
     {
         foreach my $seq (@cand_sans)
         {
+            chomp $seq;
             if ( $seq ne $one )
             {
                 my $ontologies  = q{};
@@ -2112,6 +2343,18 @@ sub GOs_in_common
                 my $ncpi        = 0;
                 my $res_counter = 0;
                 my $dbfetch = get("http://www.uniprot.org/uniprot/$seq.txt");
+                if ( !( defined $dbfetch ) )
+                {
+                    for ( 0 .. 3 )
+                    {
+                        $dbfetch =
+                          get("http://www.uniprot.org/uniprot/$seq.txt");
+                        if ( defined $dbfetch )
+                        {
+                            last;
+                        }
+                    }
+                }
                 do
                 {
         ########################################################################
@@ -2125,7 +2368,8 @@ sub GOs_in_common
                         $res_counter++;
                         $dbfetch = $';
                     }
-                } while ( $dbfetch =~ /GO; GO:(\d+);\s(.+);/ );
+                  } while ( defined $dbfetch
+                    && $dbfetch =~ /GO; GO:(\d+);\s(.+);/ );
                 foreach my $term (@go_list)
                 {
                     $term =~ s/\?/\\?/;

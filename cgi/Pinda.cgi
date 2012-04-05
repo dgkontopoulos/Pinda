@@ -437,8 +437,8 @@ ENDHTML
         ################################
         print <<"ENDHTML";
     <form id = 'submit' method = 'post' action=http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi>
-    <fieldset class="fieldset-auto-width"><legend><font size='2'>
-    Organism Selection </legend>
+    <fieldset class="fieldset-auto-width"><legend><font size='2' face='Georgia' color='330033'>
+    Organism Selection </font></legend>
 ENDHTML
 
         if ( $mikos == 0 )
@@ -509,8 +509,8 @@ ENDHTML
     {
         print <<"ENDHTML";
     <form id = 'submit' method = 'post' action=http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi>
-    <fieldset class="fieldset-auto-width"><legend><font size='2'>
-    Organism Selection </legend>
+    <fieldset class="fieldset-auto-width"><legend><font size='2' face='Georgia' color='330033'>
+    Organism Selection </font></legend>
 	<font size='2' face='Georgia' color='330033'>
 	<p style='width: 270px; text-align:left;margin-bottom:1px;margin-top:1px'>
 	<center>

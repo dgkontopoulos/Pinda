@@ -12,17 +12,24 @@ A Web service aiming to facilitate detection of specific gene duplications in an
 
 ## AVAILABILITY
 
-*Pinda* is located at <font size="-1"><a href="http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi">http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi</a></font>, whereas the Source Code can be obtained at <font size="-1"><a href="https://github.com/dgkontopoulos/Pinda">https://github.com/dgkontopoulos/Pinda</a></font>. 
+*Pinda* is located at <a href="http://orion.mbg.duth.gr/Pinda" style="text-decoration:none">http://orion.mbg.duth.gr/Pinda</a>, whereas the Source Code can be obtained at <a href="https://github.com/dgkontopoulos/Pinda" style="text-decoration:none">https://github.com/dgkontopoulos/Pinda</a>. 
+
 ## USAGE
 
-At *Pinda*'s index page, you may enter a sequence, select a database for the analysis and submit your email address, so that you can be notified when the job is complete. After clicking the "Submit" button, *Pinda* will take you to the next page, where you may choose the organism within which the duplication analysis will take place. Past this point, your task has entered the queue. You will be notified after completion via email, including a possible duplications table, a multiple sequence alignment and a dendrogram. 
+At *Pinda*'s index page, you may enter a Protein or DNA sequence. After clicking the "Continue" button, *Pinda* will take you to the next page, where you may choose the organism and the database within which the duplication analysis will take place. You also have to enter your email address, so that you can be notified after the job is complete. Past this point, your task has entered the queue. You will receive its results via email, including a possible duplications table, a multiple sequence alignment and a dendrogram.
+
+##FLOWCHART
+
+<center>
+<img src="http://orion.mbg.duth.gr/Pinda/flowchart.png">
+</center>
 
 ## AUTHOR
 
-Dimitrios - Georgios Kontopoulos 
+Pinda has been developed by <b>Dimitrios - Georgios Kontopoulos</b> as his final year project, under the supervision of <a href="http://utopia.duth.gr/~glykos" style="text-decoration:none">Prof. Nicholas M. Glykos</a> at the <a href="http://www.mbg.duth.gr" style="text-decoration:none">Department of Molecular Biology and Genetics</a> of <a href="http://www.duth.gr" style="text-decoration:none">Democritus University of Thrace, Greece</a>.
 
 ## LICENSE 
 This program is free software: you can redistribute it and/or modify it under the terms of the 
 **<FONT SIZE="-1">GNU</FONT>** Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. 
-For more information, see <A HREF="http://www.gnu.org/licenses/.">http://www.gnu.org/licenses/.</A> 
+For more information, see <A HREF="http://www.gnu.org/licenses/" style="text-decoration:none">http://www.gnu.org/licenses/.</A> 
 </BODY> </HTML>

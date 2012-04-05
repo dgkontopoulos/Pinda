@@ -107,6 +107,7 @@ my $line_input;
     $line_input = <$input_fh>;
 }
 close $input_fh;
+chomp $line_input;
 do
 {
     $line_input =~ s/\n/<br>/;
@@ -117,7 +118,8 @@ my $email_data = <<"EMAIL_END";
 <a href='http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi'>
 <img src='http://orion.mbg.duth.gr/Pinda/pindalogo.png'></a>
 </center><br><br><br><hr />
-<b>Input Sequence:</b><br>$line_input<br><hr />
+<b>Input Sequence:</b><br><font face='Courier New'>$line_input
+</font><br><hr />
 <b>Organism:</b> $organism<br><hr />
 <b>Database:</b> $database<hr /><br><center>
 EMAIL_END
@@ -125,11 +127,12 @@ EMAIL_END
 if ( $db =~ /nt[.]fasta/ )
 {
 	$email_data .= <<"EMAIL_END";
-	<img src='http://orion.mbg.duth.gr/Pinda/caution.png' width=45
-	height=40><br>
+	<font size='2'>
+	<img src='http://orion.mbg.duth.gr/Pinda/caution.png' width=39
+	height=35><b><br>
 	The nt database is partially non-redundant.<br>
 	You are advised to pay extra attention when interpreting the results.
-	<br>
+	</b></font><br>
 EMAIL_END
 }
 
@@ -257,7 +260,7 @@ if ( $db !~ /nt[.]fasta/ )
                             }
                         }
                     }
-                    if ( $org1 =~ /$organism/ )
+                    if ( $org1 =~ /$organism/i )
                     {
                         if ( $hit->accession =~ /tr[|](\w+)[|]/ )
                         {
@@ -394,12 +397,19 @@ else
                 ######################################
                 #Populate the organism dropdown list.#
                 ######################################
-                if ( $dbfetch =~ /ORGANISM\s+(\w+\s+\w+)/ )
-                {
-                    $org = $1;
-                    $organism[$list] = $org;
-                    $list++;
-                }
+                open ( my $db_fh, '<', \$dbfetch );
+				local $/ = "\n";
+				while ( my $db_line = <$db_fh> )
+				{
+					if ( $db_line =~ /ORGANISM\s+(\w+\s+\w+)/ )
+					{
+						$org = $1;
+						$organism[$list] = $org;
+						$list++;
+						last;
+					}
+				}
+				close $db_fh;
             }
             elsif ($hit->name =~ /gb[|](.+)[|]/
                 || $hit->name =~ /dbj[|](.+)[|]/
@@ -430,12 +440,18 @@ else
                 ######################################
                 #Populate the organism dropdown list.#
                 ######################################
-                if ( $dbfetch =~ /OS\s+(\w+\s+\w+)/ )
-                {
-                    $org = $1;
-                    $organism[$list] = $org;
-                    $list++;
-                }
+                open ( my $db_fh, '<', \$dbfetch );
+				local $/ = "\n";
+				while ( my $db_line = <$db_fh> )
+				{
+					if ( $db_line =~ /OS\s+(\w+\s+\w+)/ )
+					{
+						$org = $1;
+						$organism[$list] = $org;
+						$list++;
+						last;
+					}
+				}
             }
             #######################################################
             #Populate an array with results from defined organism.#
@@ -455,7 +471,7 @@ else
             ####################
             #Get the sequences.#
             ####################
-            if ( defined $accession )
+            if ( defined $accession && $org =~ /$organism/i )
             {
                 if ( !( defined $hit_old ) || $hit_old ne $accession )
                 {
@@ -544,7 +560,7 @@ else
     if ( defined $query_line && $query_found == '0' )
     {
         my $number = @seq;
-        $seq[$number] = ">IIIQUERYIII $organism\n" . $query_line . "\n\n";
+        $seq[$number] = ">IIIQUERYIII $organism\n" . $query_line . "\n";
     }
 
 }
@@ -558,7 +574,7 @@ open $sequences_fh, '>', $sequences or die $!;
 
 foreach my $sequence (@seq2)
 {
-    if ( $sequence =~ /$organism/ )
+    if ( $sequence =~ /$organism/i )
     {
         if ( $sequence =~ /(\w+)[.]\d*/ )
         {
@@ -702,7 +718,7 @@ if ( $sequences_number > 3 )
             }
             elsif ( $one eq 'QUERY' )
             {
-                $one_dbfetch = ">IIIQUERYIII\n$match_line\n\n";
+                $one_dbfetch = ">IIIQUERYIII\n$query_line\n\n";
             }
             else
             {
@@ -732,7 +748,7 @@ if ( $sequences_number > 3 )
         {
             if ( $one eq 'QUERY' )
             {
-                $one_dbfetch = ">QUERY\n$match_line\n\n";
+                $one_dbfetch = ">QUERY\n$query_line\n\n";
             }
             else
             {
@@ -1078,7 +1094,8 @@ EMAIL_END
     #############
     $email_data .= <<"EMAIL_END";
         </table><img src='http://orion.mbg.duth.gr/Pinda/results/trees/drawn/$prid.png'><br>
-        <a href=http://orion.mbg.duth.gr/Pinda/results/trees/zips/$prid.zip>NJ Tree Produced
+        <a href=http://orion.mbg.duth.gr/Pinda/results/trees/zips/$prid.zip>
+        NJ trees produced in .ph/.phb format
         </a>
 EMAIL_END
 
@@ -1194,7 +1211,7 @@ EMAIL_END
             {
                 if ( $one eq 'QUERY' )
                 {
-                    $one_dbfetch = ">QUERY\n$match_line\n\n";
+                    $one_dbfetch = ">QUERY\n$query_line\n\n";
                 }
                 else
                 {
@@ -1509,8 +1526,9 @@ EMAIL_END
             </table><center>
             <img src='http://orion.mbg.duth.gr/Pinda/results/trees/drawn/$prid.png'>
             <br>
-            <a href=http://orion.mbg.duth.gr/Pinda/results/trees/zips/$prid.zip>NJ Tree
-            Produced</a></center>
+            <a href=http://orion.mbg.duth.gr/Pinda/results/trees/zips/$prid.zip>
+            NJ trees produced in .ph/.phb format
+            </a></center>
 EMAIL_END
 
     }
@@ -1546,10 +1564,11 @@ EMAIL_END
         {
             $email_data .= <<"EMAIL_END";
             <center>
-            <br><font size='3' face='Georgia' color='330033'><br><br>
-            Blastn has not detected any sequences related to <b>$one</b> in this organism.
-            <br><br><br><br>
-            No possible duplications of <b>$one</b> have been detected.</font>
+            <font size='3' face='Georgia' color='330033'><br><br>
+            No similar sequences from <b>$organism</b>
+            have been identified.
+            <br><b>Phylogenetic analysis is meaningless therefore.</b>
+            </font>
             </center>
 EMAIL_END
         }
@@ -1557,10 +1576,11 @@ EMAIL_END
         {
             $email_data .= <<"EMAIL_END";
             <center>
-            <br><font size='3' face='Georgia' color='330033'><br><br>
-            PSI-BLAST has not detected any sequences related to <b>$one</b> in this organism.
-            <br><br><br><br>
-            No possible duplications of <b>$one</b> have been detected.</font>
+            <font size='3' face='Georgia' color='330033'><br><br>
+            No similar sequences from <b>$organism</b>
+            have been identified.
+            <br><b>Phylogenetic analysis is meaningless therefore.</b>
+            </font>
             </center>
 EMAIL_END
         }
@@ -1605,12 +1625,22 @@ open $job_average_fh, '>', $job_average;
 print {$job_average_fh} "Protein Jobs: $pr_jobs Average Time: $pr_time\n";
 print {$job_average_fh} "DNA Jobs: $dn_jobs Average Time: $dn_time\n";
 close $job_average_fh;
+
+$email_data .= <<"ENDHTML";
+<br><br>
+<font size='1'>Temporary files from this job, including alignments, .ph/.phb
+trees and plotted trees, will be <b>DELETED</b> after ten days.</font>
+</center>
+</body>
+</html>
+ENDHTML
+
 ##############
 #Send e-mail.#
 ##############
 send_email( $one, $email );
 
-$email_data .= "</center>\n</body>\n</html>";
+
 my $job_counting = "/var/www/Pinda/running_jobs";
 my $protein_jobs;
 my $dna_jobs;
@@ -1647,12 +1677,14 @@ close $job_counting_fh;
 #############################
 sub align
 {
+	my $out = $_[1] . ".fasta";
     my $db = $_[2];
     if ( $db !~ /nt[.]fasta/ )
     {
         system(
-"/usr/local/bin/clustalo -i $_[0] -o $_[1] --outfmt=clustal --threads=4 -v --force"
+"/usr/local/bin/clustalo -i $_[0] -o $out --outfmt=fasta --threads=4 -v --force"
         );
+        system("sreformat clustal $out > $_[1]");
     }
     else
     {

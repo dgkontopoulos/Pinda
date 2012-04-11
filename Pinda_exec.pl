@@ -22,6 +22,8 @@ use Statistics::Basic qw(:all nofill);
 use Sys::CPU;
 use Time::localtime;
 
+use feature qw(say);
+
 use bignum;
 use strict;
 use warnings;
@@ -314,7 +316,7 @@ if ( $db !~ /nt[.]fasta/ )
                                     $match_line =~ s/\s//;
                                   } while ( $match_line =~ /\n/
                                     || $match_line =~ /\s/ );
-                                if ( $query_line eq $match_line )
+                                if ( ( uc $query_line ) eq ( uc $match_line ) )
                                 {
                                     $query_found = '1';
                                     $one         = $acnumber;
@@ -531,7 +533,7 @@ else
                             $match_line =~ s/\s//;
                           } while ( $match_line =~ /\n/
                             || $match_line =~ /\s/ );
-                        if ( $query_line eq $match_line )
+                        if ( ( uc $query_line ) eq ( uc $match_line ) )
                         {
                             $query_found = '1';
                             $one         = $accession;
@@ -539,6 +541,7 @@ else
                         }
                     }
 
+					$match_line = uc $match_line;
                     $match_line =~ tr/\n//d;
                     $seq{$number} = ">$accession $org" . q{ } . $match_line;
                     $number++;
@@ -711,6 +714,7 @@ if ( $sequences_number > 3 )
                         }
                     }
                 }
+                $one_dbfetch = uc $one_dbfetch;
                 if ( $one_dbfetch =~ /\n/ )
                 {
                     $one_dbfetch = ">III" . $one . "III\n" . $' . "\n\n";
@@ -759,7 +763,7 @@ if ( $sequences_number > 3 )
         {
             $one_dbfetch =~ s/$one/***$one***/;
         }
-        print {$sequences_fh} $one_dbfetch . "\n";
+        say {$sequences_fh} $one_dbfetch;
         my $dbfetch;
         foreach my $reseq (@realign)
         {
@@ -783,6 +787,7 @@ if ( $sequences_number > 3 )
                             }
                         }
                     }
+                    $dbfetch = uc $dbfetch;
                     if ( $dbfetch =~ /\n/ )
                     {
                         $dbfetch = ">$reseq\n" . $' . "\n\n";
@@ -829,7 +834,7 @@ if ( $sequences_number > 3 )
                     }
                 }
             }
-            print {$sequences_fh} $dbfetch . "\n";
+            say {$sequences_fh} $dbfetch;
         }
         close $sequences_fh or die $!;
         $fnaln .= "2";
@@ -1219,8 +1224,9 @@ EMAIL_END
                       get("http://www.uniprot.org/uniprot/$one.fasta");
                 }
             }
+            $one_dbfetch = uc $one_dbfetch;
             $one_dbfetch =~ s/$one/***$one***/;
-            print {$sequences_fh} $one_dbfetch . "\n";
+            say {$sequences_fh} $one_dbfetch;
             my $dbfetch;
             foreach my $reseq (@realign)
             {
@@ -1270,7 +1276,8 @@ EMAIL_END
                     $dbfetch =
                       get("http://www.uniprot.org/uniprot/$reseq.fasta");
                 }
-                print {$sequences_fh} $dbfetch . "\n";
+                $dbfetch = uc $dbfetch;
+                say {$sequences_fh} $dbfetch;
             }
             close $sequences_fh or die $!;
             $fnaln .= "2";
@@ -1622,8 +1629,8 @@ else
     $pr_jobs++;
 }
 open $job_average_fh, '>', $job_average;
-print {$job_average_fh} "Protein Jobs: $pr_jobs Average Time: $pr_time\n";
-print {$job_average_fh} "DNA Jobs: $dn_jobs Average Time: $dn_time\n";
+say {$job_average_fh} "Protein Jobs: $pr_jobs Average Time: $pr_time";
+say {$job_average_fh} "DNA Jobs: $dn_jobs Average Time: $dn_time";
 close $job_average_fh;
 
 $email_data .= <<"ENDHTML";
@@ -1668,8 +1675,8 @@ else
     $protein_jobs--;
 }
 open $job_counting_fh, '>', $job_counting;
-print {$job_counting_fh} "Protein: $protein_jobs\n";
-print {$job_counting_fh} "DNA: $dna_jobs\n";
+say {$job_counting_fh} "Protein: $protein_jobs";
+say {$job_counting_fh} "DNA: $dna_jobs";
 close $job_counting_fh;
 
 #############################
@@ -1682,9 +1689,11 @@ sub align
     if ( $db !~ /nt[.]fasta/ )
     {
         system(
+"/usr/local/bin/clustalo -i $_[0] -o $_[1] --outfmt=clu --threads=4 -v --force"
+        );
+         system(
 "/usr/local/bin/clustalo -i $_[0] -o $out --outfmt=fasta --threads=4 -v --force"
         );
-        system("sreformat clustal $out > $_[1]");
     }
     else
     {

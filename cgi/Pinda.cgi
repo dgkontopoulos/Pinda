@@ -57,6 +57,8 @@ use LWP::Simple qw(get);
 use Sys::CPU;
 use Time::localtime;
 
+use feature qw(say);
+
 use strict;
 use warnings;
 
@@ -295,7 +297,7 @@ ENDHTML
     #Avoiding browser timeout.#
     ###########################
     my $timeout = 60;
-    $SIG{ALRM} = sub { print ".\n"; alarm $timeout; };
+    $SIG{ALRM} = sub { say "."; alarm $timeout; };
     alarm $timeout;
 
     ##############################
@@ -308,7 +310,7 @@ ENDHTML
     ######################
     if ( $db !~ /nt[.]fasta/ )
     {
-        print "<!--\n";
+        say "<!--";
         system(
 "blastp -query $tmp -db $db -evalue 0.1 -num_threads $cpu_n -out $out -seg yes"
           ) == 0
@@ -423,7 +425,7 @@ ENDHTML
         #####################################
         $orghash = freeze %organisms;
         alarm 0;
-        print "-->\n";
+        say "-->";
         if ( defined $organism )
         {
             print <<"ENDHTML";
@@ -457,20 +459,20 @@ ENDHTML
         }
         else
         {
-            print <<"ENDHTML";
+            say <<"ENDHTML";
 	<p style='width: 270px; text-align:left;margin-bottom:1px;margin-top:1px'>
     <font size='2' face='Georgia' color='330033'>
     <b>Either select the correct source organism from the following list
     </b></font><br><br></p>
     <p style='width: 270px; text-align:right;margin-bottom:1px;margin-top:1px'>
     <center><select name='organism' tabindex='1' class='default'>
-    <option value=''>---Select an organism---</option>\n
+    <option value=''>---Select an organism---</option>
 ENDHTML
 
             for ( 0 .. $mikos - 1 )
             {
-                print
-                  "<option value='$organism2[$_]'>$organism2[$_]</option>\n";
+                say
+                  "<option value='$organism2[$_]'>$organism2[$_]</option>";
             }
             print <<"ENDHTML";
 		</select></center></p>

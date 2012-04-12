@@ -21,7 +21,7 @@ At *Pinda*'s index page, you may enter a Protein or DNA sequence. After clicking
 ##FLOWCHART
 
 <center>
-<img src="http://orion.mbg.duth.gr/Pinda/flowchart.png">
+<img src="https://github.com/dgkontopoulos/Pinda/raw/master/flowchart.png">
 </center>
 
 ## AUTHOR

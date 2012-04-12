@@ -128,7 +128,7 @@ EMAIL_END
 
 if ( $db =~ /nt[.]fasta/ )
 {
-	$email_data .= <<"EMAIL_END";
+    $email_data .= <<"EMAIL_END";
 	<font size='2'>
 	<img src='http://orion.mbg.duth.gr/Pinda/caution.png' width=39
 	height=35><b><br>
@@ -399,19 +399,19 @@ else
                 ######################################
                 #Populate the organism dropdown list.#
                 ######################################
-                open ( my $db_fh, '<', \$dbfetch );
-				local $/ = "\n";
-				while ( my $db_line = <$db_fh> )
-				{
-					if ( $db_line =~ /ORGANISM\s+(\w+\s+\w+)/ )
-					{
-						$org = $1;
-						$organism[$list] = $org;
-						$list++;
-						last;
-					}
-				}
-				close $db_fh;
+                open( my $db_fh, '<', \$dbfetch );
+                local $/ = "\n";
+                while ( my $db_line = <$db_fh> )
+                {
+                    if ( $db_line =~ /ORGANISM\s+(\w+\s+\w+)/ )
+                    {
+                        $org = $1;
+                        $organism[$list] = $org;
+                        $list++;
+                        last;
+                    }
+                }
+                close $db_fh;
             }
             elsif ($hit->name =~ /gb[|](.+)[|]/
                 || $hit->name =~ /dbj[|](.+)[|]/
@@ -442,18 +442,18 @@ else
                 ######################################
                 #Populate the organism dropdown list.#
                 ######################################
-                open ( my $db_fh, '<', \$dbfetch );
-				local $/ = "\n";
-				while ( my $db_line = <$db_fh> )
-				{
-					if ( $db_line =~ /OS\s+(\w+\s+\w+)/ )
-					{
-						$org = $1;
-						$organism[$list] = $org;
-						$list++;
-						last;
-					}
-				}
+                open( my $db_fh, '<', \$dbfetch );
+                local $/ = "\n";
+                while ( my $db_line = <$db_fh> )
+                {
+                    if ( $db_line =~ /OS\s+(\w+\s+\w+)/ )
+                    {
+                        $org = $1;
+                        $organism[$list] = $org;
+                        $list++;
+                        last;
+                    }
+                }
             }
             #######################################################
             #Populate an array with results from defined organism.#
@@ -541,7 +541,7 @@ else
                         }
                     }
 
-					$match_line = uc $match_line;
+                    $match_line = uc $match_line;
                     $match_line =~ tr/\n//d;
                     $seq{$number} = ">$accession $org" . q{ } . $match_line;
                     $number++;
@@ -1179,6 +1179,10 @@ EMAIL_END
                         }
                     }
                 }
+                elsif ( $one eq 'QUERY' )
+                {
+                    $one_dbfetch = ">IIIQUERYIII\n$query_line\n\n";
+                }
                 else
                 {
                     $one_dbfetch = get(
@@ -1211,6 +1215,10 @@ EMAIL_END
                         }
                     }
                 }
+                if ( $one_dbfetch =~ /\n/ )
+                {
+                    $one_dbfetch = ">III" . $one . "III\n" . $' . "\n\n";
+                }
             }
             else
             {
@@ -1225,14 +1233,17 @@ EMAIL_END
                 }
             }
             $one_dbfetch = uc $one_dbfetch;
-            $one_dbfetch =~ s/$one/***$one***/;
+            if ( $db !~ /nt[.]fasta/ )
+            {
+                $one_dbfetch =~ s/$one/***$one***/;
+            }
             say {$sequences_fh} $one_dbfetch;
             my $dbfetch;
             foreach my $reseq (@realign)
             {
                 if ( $db =~ /nt[.]fasta/ )
                 {
-                    if ( $one =~ /^\D{2}\_/ )
+                    if ( $reseq =~ /^\D{2}\_/ )
                     {
                         $dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$reseq&format=fasta&style=raw"
@@ -1249,6 +1260,10 @@ EMAIL_END
                                     last;
                                 }
                             }
+                        }
+                        if ( $dbfetch =~ /\n/ )
+                        {
+                            $dbfetch = ">$reseq\n" . $' . "\n\n";
                         }
                     }
                     else
@@ -1268,6 +1283,10 @@ EMAIL_END
                                     last;
                                 }
                             }
+                        }
+                        if ( $dbfetch =~ /\n/ )
+                        {
+                            $dbfetch = ">$reseq\n" . $' . "\n\n";
                         }
                     }
                 }
@@ -1647,7 +1666,6 @@ ENDHTML
 ##############
 send_email( $one, $email );
 
-
 my $job_counting = "/var/www/Pinda/running_jobs";
 my $protein_jobs;
 my $dna_jobs;
@@ -1684,14 +1702,14 @@ close $job_counting_fh;
 #############################
 sub align
 {
-	my $out = $_[1] . ".fasta";
-    my $db = $_[2];
+    my $out = $_[1] . ".fasta";
+    my $db  = $_[2];
     if ( $db !~ /nt[.]fasta/ )
     {
         system(
 "/usr/local/bin/clustalo -i $_[0] -o $_[1] --outfmt=clu --threads=4 -v --force"
         );
-         system(
+        system(
 "/usr/local/bin/clustalo -i $_[0] -o $out --outfmt=fasta --threads=4 -v --force"
         );
     }

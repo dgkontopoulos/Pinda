@@ -37,6 +37,9 @@ remove_temp_files
 cd /var/www/Pinda/results/final_alns/multalign/
 remove_temp_files
 
+cd /var/www/Pinda/results/final_alns/multalign/conf/
+remove_temp_files
+
 cd /var/www/Pinda/results/trees/drawn/
 remove_temp_files
 

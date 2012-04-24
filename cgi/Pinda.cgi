@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 ####################
-#$VERSION = '0.01';#
+#$VERSION = '0.02';#
 ####################
 
 =head1 NAME
@@ -21,18 +21,25 @@ https://github.com/dgkontopoulos/Pinda.
 
 =head1 USAGE
 
-At Pinda's index page, you may enter a sequence, select a database 
-for the analysis and submit your email address, so that you can be 
-notified when the job is complete. After clicking the "Submit" button, 
-Pinda will take you to the next page, where you may choose the organism 
-within which the duplication analysis will take place. Past this point, 
-your task has entered the queue. You will be notified after completion 
-via email, including a possible duplications table, a multiple sequence 
-alignment and a dendrogram.
+At Pinda's index page, you may enter a Protein or DNA sequence. After
+clicking the "Continue" button, Pinda will take you to the next page,
+where you may choose the organism and the database within which the
+duplication analysis will take place. You also have to enter your email
+address, so that you can be notified after the job is complete. Past
+this point, your task has entered the queue. You will receive its
+results via email, including a possible duplications table, a multiple
+sequence alignment and a dendrogram.
+
+=head1 FLOWCHART
+
+http://orion.mbg.duth.gr/Pinda/flowchart.png
 
 =head1 AUTHOR
 
-Dimitrios - Georgios Kontopoulos
+Pinda has been developed by Dimitrios - Georgios Kontopoulos as his
+final year project, under the supervision of Prof. Nicholas M. Glykos
+at the Department of Molecular Biology and Genetics of Democritus
+University of Thrace, Greece.
 
 =head1 LICENSE
 
@@ -471,8 +478,7 @@ ENDHTML
 
             for ( 0 .. $mikos - 1 )
             {
-                say
-                  "<option value='$organism2[$_]'>$organism2[$_]</option>";
+                say "<option value='$organism2[$_]'>$organism2[$_]</option>";
             }
             print <<"ENDHTML";
 		</select></center></p>
@@ -500,11 +506,11 @@ ENDHTML
         <font size='2'>
         <input type="radio" name="db" value="UniProt"> <b>UniProt</b> 
         </font><font size='1'>(Updated: $uni_timestamp)</font>
-        <br><br>
-        <input type=checkbox name='lcr_filtering' value='1'>
+        <br><br><input type=checkbox name='lcr_filtering' value='1'>
 		Disable low complexity region filtering
-        </fieldset><br>
-        
+        <br><input type=checkbox name='masking' value='1'>
+		Disable alignment masking
+		</fieldset><br>
 ENDHTML
     }
     else
@@ -531,8 +537,7 @@ ENDHTML
 		<font size='2'>
         <input type="radio" name="db" value="nt" checked><b>nt</b>
         </font><font size='1'>(Updated: $nt_timestamp)</font><br>
-        <br>
-        <input type=checkbox name='lcr_filtering' value='1'>
+        <br><input type=checkbox name='lcr_filtering' value='1'>
 		Disable low complexity region filtering
         </fieldset><br>
         
@@ -686,11 +691,21 @@ ENDHTML
     {
         $lcr_filtering = '1';
     }
+    my $masking;
+    if ( defined $query->param('masking')
+        && $query->param('masking') eq 1 )
+    {
+        $masking = '0';
+    }
+    else
+    {
+        $masking = '1';
+    }
 
     my $job =
         "../Pinda_exec.pl $email " . '"'
       . $organism . '"'
-      . " $prid $database $lcr_filtering $one";
+      . " $prid $database $lcr_filtering $one $masking";
     my $job_temp = "/tmp/$prid";
     open my $job_fh, '>', $job_temp;
     print {$job_fh} $job;
@@ -748,7 +763,7 @@ ENDHTML
     my $estimated_time;
     $estimated_time =
       ( ( $protein_jobs * $pr_time ) + ( $dna_jobs * $dn_time ) ) * 2;
-      
+
     print <<"ENDHTML";
     <p style='width: 470px; text-align:center;margin-bottom:1px;margin-top:1px'>
     <font size='3' face='Georgia' color='330033'>
@@ -777,7 +792,7 @@ ENDHTML
 		<font color='black'>
 ENDHTML
     }
-    
+
     job_timer($estimated_time);
     print <<"ENDHTML";
     <br><br><br><center><font size='2'>
@@ -785,10 +800,6 @@ ENDHTML
     </font><br><br><br></center>
 ENDHTML
 }
-
-
-
-
 
 sub job_timer
 {

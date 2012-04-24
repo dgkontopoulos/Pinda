@@ -1,5 +1,31 @@
 #!/usr/bin/perl -w
 
+####################
+#$VERSION = '0.02';#
+####################
+
+=head1 NAME
+
+PINDA - Pipeline for INtraspecies Duplication Analysis
+
+=head1 AUTHOR
+
+Pinda has been developed by Dimitrios - Georgios Kontopoulos as his
+final year project, under the supervision of Prof. Nicholas M. Glykos
+at the Department of Molecular Biology and Genetics of Democritus
+University of Thrace, Greece.
+
+=head1 LICENSE
+
+This program is free software: you can redistribute it and/or modify 
+it under the terms of the GNU Affero General Public License as 
+published by the Free Software Foundation, either version 3 of the 
+License, or (at your option) any later version.
+
+For more information, see http://www.gnu.org/licenses/.
+
+=cut
+
 use Bio::AlignIO;
 use Bio::Perl;
 use Bio::Root::IO;
@@ -42,14 +68,14 @@ my $sequences_number = 0;
 my $tdcounter        = 0;
 
 my (
-    $acnumber,    $alignment, $dbfetch,      $des,
-    $hit,         $i,         $line,         $match_line,
-    $number,      $one_gos,   $org1,         $out,
-    $out_fh,      $sequence,  $sequences_fh, $starting_point,
-    $tdbg,        @accession, @candidate,    @cand_sans,
-    @sequences2,  @realign,   @reslines,     @seq,
-    @seq2,        %common,    %seq,          %textcommon,
-    %textncommon, %texts,     %texts2
+    $acnumber,   $alignment, $dbfetch,      $des,
+    $hit,        $i,         $line,         $match_line,
+    $number,     $one_gos,   $org1,         $out,
+    $out_fh,     $sequence,  $sequences_fh, $starting_point,
+    $tdbg,       @accession, @candidate,    @cand_sans,
+    @sequences2, @realign,   @reslines,     @seq,
+    @seq2,       %common,    %textcommon,   %textncommon,
+    %texts,      %texts2
 );
 my $start_timer = time;
 
@@ -59,6 +85,7 @@ my $prid          = $ARGV[2];
 my $db            = $ARGV[3];
 my $lcr_filtering = $ARGV[4];
 my $one           = $ARGV[5];
+my $masking       = $ARGV[6];
 
 my $tmp = '../tmps/blast/' . $prid . '.tmp';
 my $query_line;
@@ -337,6 +364,7 @@ if ( $db !~ /nt[.]fasta/ )
 }
 else
 {
+    $cpu_n--;
     $out = '../outs/blast/' . $prid . '.tmp';
     if ( $lcr_filtering == 1 )
     {
@@ -359,10 +387,7 @@ else
     );
 
     my $hit_old = 0;
-    my (
-        $accession, $input_hit, $list2, $org,
-        @input_org, @organism,  %organisms
-    );
+    my ( $accession, $input_hit, $org, @organism );
     my $list        = 0;
     my $number      = 0;
     my $query_found = 0;
@@ -455,21 +480,6 @@ else
                     }
                 }
             }
-            #######################################################
-            #Populate an array with results from defined organism.#
-            #######################################################
-            if ( defined $org && $org eq $organism && defined $input_hit )
-            {
-                $input_org[$list2] = $accession;
-                $list2++;
-            }
-            ############################################################
-            #Populate a hash with the first result from every organism.#
-            ############################################################
-            if ( defined $org && !( defined $organisms{$org} ) )
-            {
-                $organisms{$org} = $accession;
-            }
             ####################
             #Get the sequences.#
             ####################
@@ -543,22 +553,12 @@ else
 
                     $match_line = uc $match_line;
                     $match_line =~ tr/\n//d;
-                    $seq{$number} = ">$accession $org" . q{ } . $match_line;
+                    $seq[$number] = ">$accession $org\n$match_line\n\n";
                     $number++;
                 }
             }
             $hit_old = $accession;
         }
-    }
-
-    for ( 0 .. $number - 1 )
-    {
-        my $temp = $seq{$_} . "\n\n";
-        if ( $temp =~ /(\s\w+\s\w+\s)/ )
-        {
-            $temp = $` . $1 . "\n" . $';
-        }
-        $seq[$_] = $temp;
     }
     if ( defined $query_line && $query_found == '0' )
     {
@@ -649,16 +649,27 @@ if ( $sequences_number > 3 )
     #########################################################
     #Alignment, NJ tree plotting, bootstrapping and parsing.#
     #########################################################
-    align( $sequences, $fnaln, $db );
-    system("clustalw -INFILE=$fnaln -OUTFILE=$ph -tree") == 0 or die $?;
+    align( $sequences, $fnaln, $db, 1 );
+    if ( $db !~ /nt[.]fasta/ && $masking == 1 )
+    {
+        my $conf_val =
+          '/var/www/Pinda/results/final_alns/multalign/conf/' . $prid . '.tmp';
+        alignment_masking( $fnaln, $conf_val, $email_data );
+    }
+    my $fnaln2 = $fnaln . ".fasta";
+    if ( !( -e $fnaln2 ) )
+    {
+        system("cp $fnaln $fnaln2");
+    }
+    system("clustalw -INFILE=$fnaln2 -OUTFILE=$ph -tree") == 0 or die $?;
     system(
-        "clustalw -INFILE=$fnaln -OUTFILE=$phb -bootstrap=1000 -bootlabels=node"
+"clustalw -INFILE=$fnaln2 -OUTFILE=$phb -bootstrap=1000 -bootlabels=node"
       ) == 0
       or die $?;
-    rename "../results/final_alns/multalign/$prid.ph",
+    rename "../results/final_alns/multalign/$prid.aln.ph",
       "../results/trees/phs/$prid.ph"
       or die $!;
-    rename "../results/final_alns/multalign/$prid.phb",
+    rename "../results/final_alns/multalign/$prid.aln.phb",
       "../results/trees/phbs/$prid.phb"
       or die $!;
     tree_manipulation1($phb);
@@ -855,7 +866,13 @@ if ( $sequences_number > 3 )
 		<center><br><font size='3' face='Georgia' color='330033'>
         <a href=http://orion.mbg.duth.gr/Pinda/results/final_alns/multalign/$prid.aln>Alignment of all hits</a>
 EMAIL_END
-
+    my $clu_file = "/var/www/Pinda/results/final_alns/multalign/$prid.aln.clu";
+    if ( -e $clu_file )
+    {
+        $email_data .= <<"EMAIL_END";
+		 | <a href=http://orion.mbg.duth.gr/Pinda/results/final_alns/multalign/$prid.aln.clu>Masked Alignment</a>
+EMAIL_END
+    }
     if ( $realign_num >= 1 )
     {
         $email_data .= <<"EMAIL_END";
@@ -1112,9 +1129,20 @@ else
         ##########################################
         #Alignment, NJ-tree plotting and parsing.#
         ##########################################
-        align( $sequences, $fnaln, $db );
-        system("clustalw -INFILE=$fnaln -OUTFILE=$ph -tree") == 0 or die $?;
-        rename "../results/final_alns/multalign/$prid.ph",
+        align( $sequences, $fnaln, $db, 1 );
+        if ( $db !~ /nt[.]fasta/ && $masking == 1 )
+        {
+            my $conf_val = '/var/www/Pinda/results/final_alns/multalign/conf/' 
+              . $prid . '.tmp';
+            alignment_masking( $fnaln, $conf_val, $email_data );
+        }
+        my $fnaln2 = $fnaln . ".fasta";
+        if ( !( -e $fnaln2 ) )
+        {
+            system("cp $fnaln $fnaln2");
+        }
+        system("clustalw -INFILE=$fnaln2 -OUTFILE=$ph -tree") == 0 or die $?;
+        rename "../results/final_alns/multalign/$prid.aln.ph",
           "../results/trees/phs/$prid.ph"
           or die $!;
         tree_manipulation1($ph);
@@ -1314,7 +1342,14 @@ EMAIL_END
 			<center><br><font size='3' face='Georgia' color='330033'>
 			<a href=http://orion.mbg.duth.gr/Pinda/results/final_alns/multalign/$prid.aln>Alignment of all hits</a>
 EMAIL_END
-
+        my $clu_file =
+          "/var/www/Pinda/results/final_alns/multalign/$prid.aln.clu";
+        if ( -e $clu_file )
+        {
+            $email_data .= <<"EMAIL_END";
+			| <a href=http://orion.mbg.duth.gr/Pinda/results/final_alns/multalign/$prid.aln.clu>Masked Alignment</a>
+EMAIL_END
+        }
         if ( $realign_num >= 1 )
         {
             $email_data .= <<"EMAIL_END";
@@ -1704,7 +1739,12 @@ sub align
 {
     my $out = $_[1] . ".fasta";
     my $db  = $_[2];
-    if ( $db !~ /nt[.]fasta/ )
+    my $again;
+    if ( defined $_[3] )
+    {
+        $again = $_[3];
+    }
+    if ( $db !~ /nt[.]fasta/ && defined $again )
     {
         system(
 "/usr/local/bin/clustalo -i $_[0] -o $_[1] --outfmt=clu --threads=4 -v --force"
@@ -1713,9 +1753,15 @@ sub align
 "/usr/local/bin/clustalo -i $_[0] -o $out --outfmt=fasta --threads=4 -v --force"
         );
     }
+    elsif ( $db !~ /nt[.]fasta/ && !( defined $again ) )
+    {
+        system(
+"/usr/local/bin/clustalo -i $_[0] -o $_[1] --outfmt=clu --threads=4 -v --force"
+        );
+    }
     else
     {
-        system("/usr/local/bin/kalign -i $_[0] -o $_[1] -f clu");
+        system("/usr/local/bin/kalign -i $_[0] -o $_[1] -f clu -q");
         my @sequences2  = ();
         my $seq2counter = 0;
         open my $fnaln_fh, '<', $fnaln or die $!;
@@ -1762,6 +1808,110 @@ sub align
             print {$fnaln_fh} $line;
             close $fnaln_fh;
         }
+    }
+    return 0;
+}
+
+############################################################
+#Mask alignments using confidence values generated by ZORRO#
+############################################################
+sub alignment_masking
+{
+    my $input      = $_[0] . ".fasta";
+    my $output     = $_[1];
+    my $email_data = $_[2];
+    system("/usr/local/bin/zorro $input > $output");
+
+    my $counter  = 0;
+    my $counter2 = 0;
+    my @low_conf;
+
+    open my $output_fh, '<', $output or die $!;
+    local $/ = "\n";
+    while ( my $line = <$output_fh> )
+    {
+        if ( $line =~ /(\d+[.]\d+)/ )
+        {
+            if ( $1 <= 0.4 )
+            {
+                $low_conf[$counter2] = $counter + 1;
+                $counter2++;
+            }
+        }
+        $counter++;
+    }
+    close $output_fh;
+
+    if ( $counter2 >= 1 && ( $counter2 / $counter ) < 0.75 )
+    {
+        open my $input_fh, '<', $input or die $!;
+        local $/ = undef;
+        my $newline = <$input_fh>;
+        close $input_fh;
+        my $seqc = 0;
+        my $resc = 0;
+        my @sequence;
+
+        while ( $newline =~ />\w+/ )
+        {
+            if ( $newline =~ /(>.+\s)/ )
+            {
+                $sequence[$seqc][0] = $1;
+                if ( $' =~ />/ || $' =~ /\s$/ )
+                {
+                    $resc = 0;
+                    my $temp = $`;
+                    $newline = '>' . $';
+                    do
+                    {
+                        $temp =~ s/\n//;
+                    } while ( $temp =~ /\n/ );
+                    foreach my $residue ( split //, $temp )
+                    {
+                        $resc++;
+                        $sequence[$seqc][$resc] = $residue;
+                    }
+                }
+                else
+                {
+                    last;
+                }
+                $seqc++;
+            }
+        }
+
+        foreach my $position (@low_conf)
+        {
+            for my $seqtmp ( 0 .. $seqc - 1 )
+            {
+                undef $sequence[$seqtmp][$position];
+            }
+        }
+
+        open $input_fh, '>', $input or die $!;
+        for my $seqtmp ( 0 .. $seqc - 1 )
+        {
+            print {$input_fh} $sequence[$seqtmp][0];
+            for ( 1 .. $resc )
+            {
+                if ( defined $sequence[$seqtmp][$_] )
+                {
+                    print {$input_fh} $sequence[$seqtmp][$_];
+                }
+            }
+            say {$input_fh} q{};
+        }
+        close $input_fh;
+        my $clu_file = $_[0] . ".clu";
+        system("sreformat clustal $input > $clu_file");
+    }
+    else
+    {
+        $email_data .= <<"ENDHTML";
+		<br><center>Most of this alignment's columns have poor confidence values.
+		<br>Masking was <b>NOT</b> performed.</center>
+ENDHTML
+        system("cp $_[0] $input");
     }
     return 0;
 }
@@ -1912,7 +2062,8 @@ sub parser
                     ####################################
                     if ( $neoline !~ /[.]/ )
                     {
-                        if ( $neoline =~ /\s?(\w+)/ || $neoline =~ /(Root)/ )
+                        if (   $neoline =~ /\s?(\w+)/
+                            || $neoline =~ /(Root)/ )
                         {
                             $parsed_lines[$plc][$plc2] = $1;
                             $plc2++;
@@ -2092,7 +2243,8 @@ sub parser
                         ######################################
                         #Add distances until the common node.#
                         ######################################
-                        if ( $star_node ne $node && $star_node =~ /(\d+)\_?/ )
+                        if (   $star_node ne $node
+                            && $star_node =~ /(\d+)\_?/ )
                         {
                             $node_distance += $distanceshash{"$star_node"};
                             $ginomenon *= $1 / 1000.0;

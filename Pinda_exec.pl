@@ -654,7 +654,7 @@ if ( $sequences_number > 3 )
     {
         my $conf_val =
           '/var/www/Pinda/results/final_alns/multalign/conf/' . $prid . '.tmp';
-        alignment_masking( $fnaln, $conf_val, $email_data );
+        alignment_masking( $fnaln, $conf_val );
     }
     my $fnaln2 = $fnaln . ".fasta";
     if ( !( -e $fnaln2 ) )
@@ -1134,7 +1134,7 @@ else
         {
             my $conf_val = '/var/www/Pinda/results/final_alns/multalign/conf/' 
               . $prid . '.tmp';
-            alignment_masking( $fnaln, $conf_val, $email_data );
+            alignment_masking( $fnaln, $conf_val );
         }
         my $fnaln2 = $fnaln . ".fasta";
         if ( !( -e $fnaln2 ) )
@@ -1744,7 +1744,7 @@ sub align
     {
         $again = $_[3];
     }
-    if ( $db !~ /nt[.]fasta/ && defined $again )
+    if ( $db !~ /nt[.]fasta/ && defined $again && $masking == 1 )
     {
         system(
 "/usr/local/bin/clustalo -i $_[0] -o $_[1] --outfmt=clu --threads=4 -v --force"
@@ -1753,7 +1753,8 @@ sub align
 "/usr/local/bin/clustalo -i $_[0] -o $out --outfmt=fasta --threads=4 -v --force"
         );
     }
-    elsif ( $db !~ /nt[.]fasta/ && !( defined $again ) )
+    elsif (( $db !~ /nt[.]fasta/ && !( defined $again ) )
+        || ( $db !~ /nt[.]fasta/ && $masking == 0 ) )
     {
         system(
 "/usr/local/bin/clustalo -i $_[0] -o $_[1] --outfmt=clu --threads=4 -v --force"
@@ -1817,9 +1818,8 @@ sub align
 ############################################################
 sub alignment_masking
 {
-    my $input      = $_[0] . ".fasta";
-    my $output     = $_[1];
-    my $email_data = $_[2];
+    my $input  = $_[0] . ".fasta";
+    my $output = $_[1];
     system("/usr/local/bin/zorro $input > $output");
 
     my $counter  = 0;

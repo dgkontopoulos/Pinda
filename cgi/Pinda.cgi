@@ -797,7 +797,12 @@ ENDHTML
     print <<"ENDHTML";
     <br><br><br><center><font size='2'>
     [<a href="http://orion.mbg.duth.gr/Pinda">Return to submission form</a>]
-    </font><br><br><br></center>
+    <br><br><br>
+    <fieldset class="fieldset-auto-width"; style="background-color: #FFFFCC; width:300px"><legend>
+    Please, do <b>NOT</b> use your browser's back button to resubmit this sequence with other parameters.
+    <br><br>Rather, submit it again to the <a href="http://orion.mbg.duth.gr/Pinda">index page</a>.</font>
+    </legend></fieldset>
+    <br><br><br></center>
 ENDHTML
 }
 

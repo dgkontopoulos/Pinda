@@ -1912,6 +1912,13 @@ sub alignment_masking
         my $clu_file = $_[0] . ".clu";
         system("sreformat clustal $input > $clu_file");
     }
+    elsif ( $counter2 == 0 )
+    {
+        $email_data .= <<"ENDHTML";
+		<br><center>All this alignment's columns have high confidence values.
+		<br>Masking is not needed.</center>
+ENDHTML
+    }
     else
     {
         $email_data .= <<"ENDHTML";

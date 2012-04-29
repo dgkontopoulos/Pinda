@@ -87,6 +87,27 @@ my $lcr_filtering = $ARGV[4];
 my $one           = $ARGV[5];
 my $masking       = $ARGV[6];
 
+system("rm /tmp/$prid /tmp/$prid.at");
+my $slurm_queue = `squeue`;
+my $slurm_id;
+my $squeue_line;
+{
+    local $/ = "\n";
+    open( my $squeue_fh, '<', \$slurm_queue );
+    while ( $squeue_line = <$squeue_fh> )
+    {
+        if ( $squeue_line =~ /1 orion/ )
+        {
+            if ( $squeue_line =~ /\s+(\d+)\s+/ )
+            {
+                $slurm_id = $1;
+                last;
+            }
+        }
+    }
+    close $squeue_fh;
+}
+
 my $tmp = '../tmps/blast/' . $prid . '.tmp';
 my $query_line;
 if ( $one eq 'QUERY' )
@@ -132,23 +153,27 @@ my $input = '/var/www/Pinda/tmps/blast/' . $prid . '.tmp';
 open my $input_fh, '<', $input or die $!;
 my $line_input;
 {
-    local $/ = undef;
-    $line_input = <$input_fh>;
+    local $/ = "\n";
+    while ( $line = <$input_fh> )
+    {
+        $line_input .= $line . '<br>';
+    }
+    if ( $line_input =~ /<br>$/ )
+    {
+        $line_input = $`;
+    }
 }
 close $input_fh;
 chomp $line_input;
-do
-{
-    $line_input =~ s/\n/<br>/;
-} while ( $line_input =~ /\n/ );
+$line_input =~ s/\n//g;
 
 my $email_data = <<"EMAIL_END";
 <center><br>
 <a href='http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi'>
 <img src='http://orion.mbg.duth.gr/Pinda/pindalogo.png'></a>
 </center><br><br><br><hr />
-<b>Input Sequence:</b><br><font face='Courier New'>$line_input
-</font><br><hr />
+<b>Input Sequence:<br><font face='Courier New'>$line_input
+</font><br></b></b></b><hr />
 <b>Organism:</b> $organism<br><hr />
 <b>Database:</b> $database<hr /><br><center>
 EMAIL_END
@@ -331,18 +356,10 @@ if ( $db !~ /nt[.]fasta/ )
                             }
                             if ( defined $query_line )
                             {
-                                do
-                                {
-                                    $query_line =~ s/\n//;
-                                    $query_line =~ s/\s//;
-                                  } while ( $query_line =~ /\n/
-                                    || $query_line =~ /\s/ );
-                                do
-                                {
-                                    $match_line =~ s/\n//;
-                                    $match_line =~ s/\s//;
-                                  } while ( $match_line =~ /\n/
-                                    || $match_line =~ /\s/ );
+                                $query_line =~ s/\n//g;
+                                $query_line =~ s/\s//g;
+                                $match_line =~ s/\n//g;
+                                $match_line =~ s/\s//g;
                                 if ( ( uc $query_line ) eq ( uc $match_line ) )
                                 {
                                     $query_found = '1';
@@ -531,18 +548,10 @@ else
                     }
                     if ( defined $query_line )
                     {
-                        do
-                        {
-                            $query_line =~ s/\n//;
-                            $query_line =~ s/\s//;
-                          } while ( $query_line =~ /\n/
-                            || $query_line =~ /\s/ );
-                        do
-                        {
-                            $match_line =~ s/\n//;
-                            $match_line =~ s/\s//;
-                          } while ( $match_line =~ /\n/
-                            || $match_line =~ /\s/ );
+                        $query_line =~ s/\n//g;
+                        $query_line =~ s/\s//g;
+                        $match_line =~ s/\n//g;
+                        $match_line =~ s/\s//g;
                         if ( ( uc $query_line ) eq ( uc $match_line ) )
                         {
                             $query_found = '1';
@@ -1731,6 +1740,7 @@ open $job_counting_fh, '>', $job_counting;
 say {$job_counting_fh} "Protein: $protein_jobs";
 say {$job_counting_fh} "DNA: $dna_jobs";
 close $job_counting_fh;
+system("rm /var/www/Pinda/slurm_errors/slurm-$slurm_id.out");
 
 #############################
 #Multiple Sequence Alignment#
@@ -1862,10 +1872,7 @@ sub alignment_masking
                     $resc = 0;
                     my $temp = $`;
                     $newline = '>' . $';
-                    do
-                    {
-                        $temp =~ s/\n//;
-                    } while ( $temp =~ /\n/ );
+                    $temp =~ s/\n//g;
                     foreach my $residue ( split //, $temp )
                     {
                         $resc++;

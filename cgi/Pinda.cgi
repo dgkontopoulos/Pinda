@@ -703,15 +703,26 @@ ENDHTML
     }
 
     my $job =
-        "../Pinda_exec.pl $email " . '"'
+        "nice -n +19 ../Pinda_exec.pl $email " . '"'
       . $organism . '"'
       . " $prid $database $lcr_filtering $one $masking";
     my $job_temp = "/tmp/$prid";
     open my $job_fh, '>', $job_temp;
+    print {$job_fh} <<"END";
+#!/bin/sh
+cd /var/www/Pinda/slurm_errors/	
+END
     print {$job_fh} $job;
     close $job_fh;
-    system("at -q Z -f $job_temp now");
-    system("rm $job_temp");
+    my $job_temp_at = $job_temp . ".at";
+    open my $at_fh, '>', $job_temp_at;
+    print {$at_fh} <<"EOF";
+	#!/bin/sh
+	cd /var/www/Pinda/slurm_errors/	
+	sbatch --mail-type=FAIL $job_temp
+EOF
+    close $at_fh;
+    system("at -q Z -f $job_temp_at now");
 
     my $job_counting = "../running_jobs";
     my $protein_jobs;

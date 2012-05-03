@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 ####################
 #$VERSION = '0.02';#
@@ -714,15 +714,123 @@ cd /var/www/Pinda/slurm_errors/
 END
     print {$job_fh} $job;
     close $job_fh;
-    my $job_temp_at = $job_temp . ".at";
-    open my $at_fh, '>', $job_temp_at;
-    print {$at_fh} <<"EOF";
-	#!/bin/sh
-	cd /var/www/Pinda/slurm_errors/	
-	sbatch --mail-type=FAIL $job_temp
-EOF
-    close $at_fh;
-    system("at -q Z -f $job_temp_at now");
+    my $job_temp_pl = $job_temp . '.pl';
+    open my $job_pl_fh, '>', $job_temp_pl;
+    print {$job_pl_fh} <<"END";
+#!/usr/bin/perl -w
+use MIME::Lite;
+system("chmod +x $job_temp");
+open my \$job_fh, '<', "$job_temp";
+my \$email;
+my \$db;
+my \$organism;
+my \$prid;
+while ( my \$line = <\$job_fh> )
+{
+	if ( \$line =~ /Pinda_exec.pl (.+) ["]/ )
+	{
+		\$email = \$1;
+	}
+	if ( \$line =~ /nt[.]fasta/ )
+	{
+		\$db = "nt.fasta";
+	}
+	elsif ( \$line =~ /Swiss/ )
+	{
+		\$db = "Swiss-prot";
+	}
+	else
+	{
+		\$db = "UniProt";
+	}
+	if ( \$line =~ /["](.+)["]\\s(\\d+)\\s/ )
+	{
+		\$organism = \$1;
+		\$prid = \$2;
+	}
+}
+close \$job_fh;
+system("$job_temp");
+if ( \$? != 0 )
+{
+	my \$error_data = "Pinda has run into an error while processing your job.";
+	\$error_data .= "\\nWe have been notified and are looking into it.";
+	send_email(\$email, \$error_data);
+	restore_job_count(\$db);
+	open my \$input_fh, '<', "/var/www/Pinda/tmps/blast/\$prid.tmp";
+	\$/ = undef;
+	my \$whole = <\$input_fh>;
+	close \$input_fh;
+	my \$program_output = `cd /var/www/Pinda/slurm_errors && ls -1t|tail -1`;
+	my \$output = `cd /var/www/Pinda/slurm_errors && cat < \$program_output`;
+	my \$error = "/tmp/error_Pinda";
+	open my \$error_fh, '>', \$error;
+	print {\$error_fh} "Pinda has run into an error.\\n\\n";
+	print {\$error_fh} "Database: \$db\\n\\n";
+	print {\$error_fh} "Organism: \$organism\\n\\n";
+	print {\$error_fh} "Input: \$whole\\n\\n";
+	print {\$error_fh} "Pinda's Output: \$output\\n\\n";
+	close \$error_fh;
+	system("mail Pinda -s 'Pinda Error' < /tmp/error_Pinda");
+	system("rm /tmp/error_Pinda");
+	system("rm /var/www/Pinda/slurm_errors/\$program_output");
+}
+system("rm $job_temp");
+system("rm $job_temp_pl");
+
+
+sub send_email
+{
+    my \$msg = MIME::Lite->new(
+        Subject => "Pinda ERROR",
+        From    => "Pinda\\\@orion.mbg.duth.gr",
+        To      => "\$_[0]",
+        Type    => 'text/html',
+        Data    => \$_[1]
+    );
+    \$msg->send();
+    return 0;
+}
+
+sub restore_job_count
+{
+	my \$job_counting = "/var/www/Pinda/running_jobs";
+	my \$protein_jobs;
+	my \$dna_jobs;
+	open my \$job_counting_fh, '<', \$job_counting;
+	local \$/ = "\\n";
+	while ( my \$line = <\$job_counting_fh> )
+	{
+		if ( \$line =~ /Protein[:] (\\d+)/ )
+		{
+			\$protein_jobs = \$1;
+		}
+		elsif ( \$line =~ /DNA[:] (\\d+)/ )
+		{
+			\$dna_jobs = \$1;
+		}
+	}
+	close \$job_counting_fh;
+	if ( \$_[0] =~ /nt[.]fasta/ )
+	{
+		\$dna_jobs--;
+	}
+	else
+	{
+		\$protein_jobs--;
+	}
+	open \$job_counting_fh, '>', \$job_counting;
+	say {\$job_counting_fh} "Protein: \$protein_jobs";
+	say {\$job_counting_fh} "DNA: \$dna_jobs";
+	close \$job_counting_fh;
+	return 0;
+}
+
+END
+    close $job_pl_fh;
+    system(
+"cd /var/www/Pinda/slurm_errors/ && sbatch --mail-type=FAIL $job_temp_pl > /dev/null"
+    );
 
     my $job_counting = "../running_jobs";
     my $protein_jobs;

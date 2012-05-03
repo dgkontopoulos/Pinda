@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl
 
 ####################
 #$VERSION = '0.02';#
@@ -87,7 +87,6 @@ my $lcr_filtering = $ARGV[4];
 my $one           = $ARGV[5];
 my $masking       = $ARGV[6];
 
-system("rm /tmp/$prid /tmp/$prid.at");
 my $slurm_queue = `squeue`;
 my $slurm_id;
 my $squeue_line;
@@ -663,7 +662,7 @@ if ( $sequences_number > 3 )
     {
         my $conf_val =
           '/var/www/Pinda/results/final_alns/multalign/conf/' . $prid . '.tmp';
-        alignment_masking( $fnaln, $conf_val );
+        alignment_masking( $fnaln, $conf_val ) == 0 or die $?;
     }
     my $fnaln2 = $fnaln . ".fasta";
     if ( !( -e $fnaln2 ) )
@@ -686,7 +685,7 @@ if ( $sequences_number > 3 )
     #Parsing the phb tree for distances and bootstrap values.#
     ##########################################################
     system("../Pinda.R -parser $phb > /var/www/Pinda/parsing/$prid.tmp") == 0
-      or die $?;
+      or die $!;
     system("../Pinda.R -lengths_1 $phb > /var/www/Pinda/parsing/$prid\_1.tmp")
       == 0
       or die $?;
@@ -1143,7 +1142,7 @@ else
         {
             my $conf_val = '/var/www/Pinda/results/final_alns/multalign/conf/' 
               . $prid . '.tmp';
-            alignment_masking( $fnaln, $conf_val );
+            alignment_masking( $fnaln, $conf_val ) == 0 or die $?;
         }
         my $fnaln2 = $fnaln . ".fasta";
         if ( !( -e $fnaln2 ) )

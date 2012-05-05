@@ -96,8 +96,14 @@ charset="utf-8"></script><script type="text/javascript" charset="utf-8">
 });
 </script>
 
+<script type="text/javascript">
+    window.history.forward();
+    function noBack() { window.history.forward(); }
+</script>
+
 </head>
-<body background='../background.jpg'>
+<body background='../background.jpg' onload="noBack();"
+onpageshow="if (event.persisted) noBack();" onunload="">
 <LINK REL='SHORTCUT ICON' HREF='../pinda.ico'>
 <center><a href='http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi'>
 <img src='http://orion.mbg.duth.gr/Pinda/pindalogo.png' width=354
@@ -209,6 +215,16 @@ elsif ( !$query->param('button') && !$query->param('dropdown') )
         </font>
 ENDHTML
         exit;
+    }
+
+    my $timezone = `date`;
+    if ( $timezone =~ /EEST/ )
+    {
+        $timezone = 'EEST';
+    }
+    else
+    {
+        $timezone = 'EET';
     }
 
     ##########################
@@ -502,10 +518,10 @@ ENDHTML
 		<b>Please select a database.</b><br>
 		<font size='2'>
         <input type="radio" name="db" value="Swiss-Prot" checked><b>Swiss-Prot</b>
-        </font><font size='1'>(Updated: $sw_timestamp)</font><br>
+        </font><font size='1'>(Updated: $sw_timestamp $timezone)</font><br>
         <font size='2'>
         <input type="radio" name="db" value="UniProt"> <b>UniProt</b> 
-        </font><font size='1'>(Updated: $uni_timestamp)</font>
+        </font><font size='1'>(Updated: $uni_timestamp $timezone)</font>
         <br><br><input type=checkbox name='lcr_filtering' value='1'>
 		Disable low complexity region filtering
         <br><input type=checkbox name='masking' value='1'>
@@ -536,7 +552,7 @@ ENDHTML
 		<b>Database</b><br>
 		<font size='2'>
         <input type="radio" name="db" value="nt" checked><b>nt</b>
-        </font><font size='1'>(Updated: $nt_timestamp)</font><br>
+        </font><font size='1'>(Updated: $nt_timestamp $timezone)</font><br>
         <br><input type=checkbox name='lcr_filtering' value='1'>
 		Disable low complexity region filtering
         </fieldset><br>

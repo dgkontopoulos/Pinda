@@ -96,14 +96,8 @@ charset="utf-8"></script><script type="text/javascript" charset="utf-8">
 });
 </script>
 
-<script type="text/javascript">
-    window.history.forward();
-    function noBack() { window.history.forward(); }
-</script>
-
 </head>
-<body background='../background.jpg' onload="noBack();"
-onpageshow="if (event.persisted) noBack();" onunload="">
+<body background='../background.jpg'>
 <LINK REL='SHORTCUT ICON' HREF='../pinda.ico'>
 <center><a href='http://orion.mbg.duth.gr/Pinda/cgi/Pinda.cgi'>
 <img src='http://orion.mbg.duth.gr/Pinda/pindalogo.png' width=354
@@ -149,11 +143,6 @@ if ( !$query->param )
     ></textarea></center></fieldset><br><br>
     <input id='submit' TYPE='submit' value=' Continue '></form></center>
     
-    <script type="text/javascript">
-    \$('#submit').submit(function(){
-    \$('input[type=submit]', this).attr('disabled', 'disabled');
-    }); 
-    </script>
     </body></html>
 ENDHTML
 }
@@ -697,6 +686,18 @@ ENDHTML
         $one = 'QUERY';
     }
     my $prid = $query->param('prid');
+    if ( `ls /var/www/Pinda/job_files` =~ /$prid/ )
+    {
+        print <<"ENDHTML";
+        <br><br<br><br><br>
+        <center><font size='3' face='Georgia' color='330033'>
+        <b>ERROR!</b> You have already submitted this sequence to Pinda.<br><br>
+        If you want to resubmit it with different parameters,<br>
+        please submit it again to the 
+        <a href='http://orion.mbg.duth.gr/Pinda'>index page</a>.</center></font>
+ENDHTML
+        exit;
+    }
     my $lcr_filtering;
     if ( defined $query->param('lcr_filtering')
         && $query->param('lcr_filtering') eq 1 )
@@ -722,7 +723,7 @@ ENDHTML
         "nice -n +19 ../Pinda_exec.pl $email " . '"'
       . $organism . '"'
       . " $prid $database $lcr_filtering $one $masking";
-    my $job_temp = "/tmp/$prid";
+    my $job_temp = "/var/www/Pinda/job_files/$prid";
     open my $job_fh, '>', $job_temp;
     print {$job_fh} <<"END";
 #!/bin/sh

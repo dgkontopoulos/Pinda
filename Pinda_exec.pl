@@ -68,14 +68,15 @@ my $sequences_number = 0;
 my $tdcounter        = 0;
 
 my (
-    $acnumber,   $alignment, $dbfetch,      $des,
-    $hit,        $i,         $line,         $match_line,
-    $number,     $one_gos,   $org1,         $out,
-    $out_fh,     $sequence,  $sequences_fh, $starting_point,
-    $tdbg,       @accession, @candidate,    @cand_sans,
-    @sequences2, @realign,   @reslines,     @seq,
-    @seq2,       %common,    %textcommon,   %textncommon,
-    %texts,      %texts2
+    $acnumber,   $alignment,  $dbfetch,      $des,
+    $hit,        $i,          $line,         $match_line,
+    $number,     $one_gos,    $org1,         $out,
+    $out_fh,     $sequence,   $sequences_fh, $starting_point,
+    $tdbg,       @accession,  @candidate,    @cand_sans,
+    @sequences2, @realign,    @reslines,     @seq,
+    @seq2,       %common,     %hsp,          %hsp_pos,
+    %hsp_seq,    %textcommon, %textncommon,  %texts,
+    %texts2
 );
 my $start_timer = time;
 
@@ -130,10 +131,11 @@ if ( $one eq 'QUERY' )
     }
     close $tmp_fh;
 }
-my $SWISSPROT = '/usr/local/databases/Swissprot/uniprot_sprot.fasta';
-my $UNIPROT   = '/usr/local/databases/UniProt/UniProt.fasta';
-my $NT        = '/usr/local/databases/nt/nt.fasta';
-my $database  = $db;
+my $query_length = length $query_line;
+my $SWISSPROT    = '/usr/local/databases/Swissprot/uniprot_sprot.fasta';
+my $UNIPROT      = '/usr/local/databases/UniProt/UniProt.fasta';
+my $NT           = '/usr/local/databases/nt/nt.fasta';
+my $database     = $db;
 
 if ( $db eq 'Swiss-Prot' )
 {
@@ -280,13 +282,17 @@ if ( $db !~ /nt[.]fasta/ )
                             if ( $readline =~ />tr[|]$ac[|]/ )
                             {
                                 $readline = $';
-                                if ( $readline =~ /OS\=(\w+\s+\w+)\s+/ )
+                                if ( $readline =~ /OS\=(.+\s+.+)\s+/ )
                                 {
                                     $org1 = $1;
                                     if ( $org1 =~ /\n/ )
                                     {
                                         $org1 = $` . $';
                                     }
+                                }
+                                else
+                                {
+                                    undef $org1;
                                 }
                             }
                         }
@@ -302,7 +308,7 @@ if ( $db !~ /nt[.]fasta/ )
                             if ( $readline =~ />sp[|]$ac[|]/ )
                             {
                                 $readline = $';
-                                if ( $readline =~ /OS\=(\w+\s+\w+)\s+/ )
+                                if ( $readline =~ /OS\=(.+\s+.+)\s+/ )
                                 {
                                     $org1 = $1;
                                     if ( $org1 =~ /\n/ )
@@ -310,10 +316,14 @@ if ( $db !~ /nt[.]fasta/ )
                                         $org1 = $` . $';
                                     }
                                 }
+                                else
+                                {
+                                    undef $org1;
+                                }
                             }
                         }
                     }
-                    if ( $org1 =~ /$organism/i )
+                    if ( defined $org1 && $org1 =~ /$organism/i )
                     {
                         if ( $hit->accession =~ /tr[|](\w+)[|]/ )
                         {
@@ -349,9 +359,41 @@ if ( $db !~ /nt[.]fasta/ )
                             if ( defined $dbfetch && $dbfetch =~ /\n/ )
                             {
                                 $match_line = $';
-                                $seq[$number] = ">$accession[$number] $org1\n"
-                                  . $match_line . "\n";
-                                $number++;
+                                my $seq_length = length $match_line;
+                                if (   $seq_length > $query_length / 5
+                                    && $seq_length <= 3 * $query_length )
+                                {
+                                    $seq[$number] =
+">$accession[$number] $org1\n$match_line\n\n";
+                                    $number++;
+                                }
+                                elsif ( $seq_length > $query_length / 5 )
+                                {
+                                    my $hsp_old_length;
+                                    while ( my $hsp = $hit->next_hsp )
+                                    {
+                                        if ( !( defined $hsp_old_length )
+                                            || $hsp->length('hit') >
+                                            $hsp_old_length )
+                                        {
+                                            $hsp{ $accession[$number] } =
+                                              ">$accession[$number] $org1\n"
+                                              . $hsp->hit_string . "\n\n";
+                                            $hsp_seq{ $accession[$number] } =
+                                              $hsp->hit_string;
+                                            $hsp_pos{ $accession[$number] } =
+                                                '('
+                                              . $hsp->start('hit') . ' -> '
+                                              . $hsp->end('hit') . ')';
+                                            $hsp_old_length =
+                                              $hsp->length('hit');
+                                        }
+                                    }
+                                    $seq[$number] = $hsp{ $accession[$number] };
+                                    undef $hsp_old_length;
+                                    delete $hsp{ $accession[$number] };
+                                    $number++;
+                                }
                             }
                             if ( defined $query_line )
                             {
@@ -444,7 +486,7 @@ else
                 local $/ = "\n";
                 while ( my $db_line = <$db_fh> )
                 {
-                    if ( $db_line =~ /ORGANISM\s+(\w+\s+\w+)/ )
+                    if ( $db_line =~ /ORGANISM\s+(.+\s+.+)/ )
                     {
                         $org = $1;
                         $organism[$list] = $org;
@@ -487,7 +529,7 @@ else
                 local $/ = "\n";
                 while ( my $db_line = <$db_fh> )
                 {
-                    if ( $db_line =~ /OS\s+(\w+\s+\w+)/ )
+                    if ( $db_line =~ /OS\s+(.+\s+.+)/ )
                     {
                         $org = $1;
                         $organism[$list] = $org;
@@ -561,8 +603,35 @@ else
 
                     $match_line = uc $match_line;
                     $match_line =~ tr/\n//d;
-                    $seq[$number] = ">$accession $org\n$match_line\n\n";
-                    $number++;
+                    my $seq_length = length $match_line;
+                    if (   $seq_length > $query_length / 5
+                        && $seq_length <= 3 * $query_length )
+                    {
+                        $seq[$number] = ">$accession $org\n$match_line\n\n";
+                        $number++;
+                    }
+                    elsif ( $seq_length > $query_length / 5 )
+                    {
+                        my $hsp_old_length;
+                        while ( my $hsp = $hit->next_hsp )
+                        {
+                            if ( !( defined $hsp_old_length )
+                                || $hsp->length('hit') > $hsp_old_length )
+                            {
+                                $hsp{$accession} = ">$accession $org\n"
+                                  . $hsp->hit_string . "\n\n";
+                                $hsp_seq{$accession} = $hsp->hit_string;
+                                $hsp_pos{$accession} = '('
+                                  . $hsp->start('hit') . ' -> '
+                                  . $hsp->end('hit') . ')';
+                                $hsp_old_length = $hsp->length('hit');
+                            }
+                        }
+                        $seq[$number] = $hsp{$accession};
+                        $number++;
+                        undef $hsp_old_length;
+                        delete $hsp{$accession};
+                    }
                 }
             }
             $hit_old = $accession;
@@ -634,10 +703,13 @@ my $line3;
     local $/ = "\n\n";
     while ( $line3 = <$sequences_fh> )
     {
-        ################################
-        #Count the resulting sequences.#
-        ################################
-        $sequences_number++;
+        if ( $line3 !~ /^\s*$/ )
+        {
+            ################################
+            #Count the resulting sequences.#
+            ################################
+            $sequences_number++;
+        }
     }
 }
 close $sequences_fh or die $!;
@@ -786,69 +858,77 @@ if ( $sequences_number > 3 )
         my $dbfetch;
         foreach my $reseq (@realign)
         {
-            if ( $db =~ /nt[.]fasta/ )
+            if ( defined $hsp_seq{$reseq} && defined $hsp_pos{$reseq} )
             {
-                if ( $reseq =~ /^\D{2}\_/ )
+                $dbfetch =
+                  ">$reseq $hsp_pos{$reseq}\n" . $hsp_seq{$reseq} . "\n\n";
+            }
+            else
+            {
+                if ( $db =~ /nt[.]fasta/ )
                 {
-                    $dbfetch = get(
-"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$reseq&format=fasta&style=raw"
-                    );
-                    if ( !( defined $dbfetch ) )
+                    if ( $reseq =~ /^\D{2}\_/ )
                     {
-                        for ( 0 .. 3 )
-                        {
-                            $dbfetch = get(
+                        $dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$reseq&format=fasta&style=raw"
-                            );
-                            if ( defined $dbfetch )
+                        );
+                        if ( !( defined $dbfetch ) )
+                        {
+                            for ( 0 .. 3 )
                             {
-                                last;
+                                $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$reseq&format=fasta&style=raw"
+                                );
+                                if ( defined $dbfetch )
+                                {
+                                    last;
+                                }
                             }
                         }
+                        $dbfetch = uc $dbfetch;
+                        if ( $dbfetch =~ /\n/ )
+                        {
+                            $dbfetch = ">$reseq\n" . $' . "\n\n";
+                        }
                     }
-                    $dbfetch = uc $dbfetch;
-                    if ( $dbfetch =~ /\n/ )
+                    else
                     {
-                        $dbfetch = ">$reseq\n" . $' . "\n\n";
+                        $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$reseq&format=fasta&style=raw"
+                        );
+                        if ( !( defined $dbfetch ) )
+                        {
+                            for ( 0 .. 3 )
+                            {
+                                $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$reseq&format=fasta&style=raw"
+                                );
+                                if ( defined $dbfetch )
+                                {
+                                    last;
+                                }
+                            }
+                        }
+                        if ( $dbfetch =~ /\n/ )
+                        {
+                            $dbfetch = ">$reseq\n" . $' . "\n\n";
+                        }
                     }
                 }
                 else
                 {
-                    $dbfetch = get(
-"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$reseq&format=fasta&style=raw"
-                    );
+                    $dbfetch =
+                      get("http://www.uniprot.org/uniprot/$reseq.fasta");
                     if ( !( defined $dbfetch ) )
                     {
                         for ( 0 .. 3 )
                         {
                             $dbfetch = get(
-"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$reseq&format=fasta&style=raw"
-                            );
+                                "http://www.uniprot.org/uniprot/$reseq.fasta");
                             if ( defined $dbfetch )
                             {
                                 last;
                             }
-                        }
-                    }
-                    if ( $dbfetch =~ /\n/ )
-                    {
-                        $dbfetch = ">$reseq\n" . $' . "\n\n";
-                    }
-
-                }
-            }
-            else
-            {
-                $dbfetch = get("http://www.uniprot.org/uniprot/$reseq.fasta");
-                if ( !( defined $dbfetch ) )
-                {
-                    for ( 0 .. 3 )
-                    {
-                        $dbfetch =
-                          get("http://www.uniprot.org/uniprot/$reseq.fasta");
-                        if ( defined $dbfetch )
-                        {
-                            last;
                         }
                     }
                 }
@@ -1000,23 +1080,60 @@ EMAIL_END
             }
             if ( $db !~ /nt[.]fasta/ )
             {
-                $email_data .=
-"<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$3>$3</a>
-</center></td>";
+                if ( defined $hsp_pos{$3} )
+                {
+                    $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$3>$3</a> $hsp_pos{$3}
+</center></td>
+EMAIL_END
+                }
+                else
+                {
+                    $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$3>$3</a>
+</center></td>
+EMAIL_END
+                }
             }
             else
             {
                 if ( $uni_temp =~ /^\D{2}\_/ )
                 {
-                    $email_data .=
-"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a>
-</center></td>";
+                    if ( defined $hsp_pos{$uni_temp} )
+                    {
+                        $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a> $hsp_pos{$uni_temp}
+</center></td>
+EMAIL_END
+                    }
+                    else
+                    {
+                        $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>
+EMAIL_END
+                    }
                 }
                 else
                 {
-                    $email_data .=
-"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a>
-</center></td>";
+                    if ( defined $hsp_pos{$uni_temp} )
+                    {
+                        $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a> $hsp_pos{$uni_temp}
+</center></td>
+EMAIL_END
+                    }
+                    else
+                    {
+                        $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>
+EMAIL_END
+                    }
                 }
             }
             $email_data .=
@@ -1069,23 +1186,62 @@ EMAIL_END
             }
             if ( $db !~ /nt[.]fasta/ )
             {
-                $email_data .=
-"<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
-</center></td>";
+                if ( defined $hsp_pos{$2} )
+                {
+                    $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.uniprot.org/uniprot/$2>$2</a> $hsp_pos{$2}
+</center></td>
+EMAIL_END
+                }
+                else
+                {
+                    $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.uniprot.org/uniprot/$2>$2</a>
+</center></td>
+EMAIL_END
+                }
             }
             else
             {
                 if ( $uni_temp =~ /^\D{2}\_/ )
                 {
-                    $email_data .=
-"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a>
-</center></td>";
+                    if ( defined $hsp_pos{$uni_temp} )
+                    {
+                        $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a> $hsp_pos{$uni_temp}
+</center></td>
+EMAIL_END
+                    }
+                    else
+                    {
+                        $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>
+EMAIL_END
+                    }
                 }
                 else
                 {
-                    $email_data .=
-"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a>
-</center></td>";
+                    if ( defined $hsp_pos{$uni_temp} )
+                    {
+                        $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a> $hsp_pos{$uni_temp}
+</center></td>
+EMAIL_END
+                    }
+                    else
+                    {
+                        $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>
+EMAIL_END
+                    }
                 }
             }
             $email_data .=
@@ -1277,61 +1433,69 @@ EMAIL_END
             my $dbfetch;
             foreach my $reseq (@realign)
             {
-                if ( $db =~ /nt[.]fasta/ )
+                if ( defined $hsp_seq{$reseq} && defined $hsp_pos{$reseq} )
                 {
-                    if ( $reseq =~ /^\D{2}\_/ )
+                    $dbfetch =
+                      ">$reseq $hsp_pos{$reseq}\n" . $hsp_seq{$reseq} . "\n\n";
+                }
+                else
+                {
+                    if ( $db =~ /nt[.]fasta/ )
                     {
-                        $dbfetch = get(
-"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$reseq&format=fasta&style=raw"
-                        );
-                        if ( !( defined $dbfetch ) )
+                        if ( $reseq =~ /^\D{2}\_/ )
                         {
-                            for ( 0 .. 3 )
-                            {
-                                $dbfetch = get(
+                            $dbfetch = get(
 "http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$reseq&format=fasta&style=raw"
-                                );
-                                if ( defined $dbfetch )
+                            );
+                            if ( !( defined $dbfetch ) )
+                            {
+                                for ( 0 .. 3 )
                                 {
-                                    last;
+                                    $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$reseq&format=fasta&style=raw"
+                                    );
+                                    if ( defined $dbfetch )
+                                    {
+                                        last;
+                                    }
                                 }
                             }
+                            if ( $dbfetch =~ /\n/ )
+                            {
+                                $dbfetch = ">$reseq\n" . $' . "\n\n";
+                            }
                         }
-                        if ( $dbfetch =~ /\n/ )
+                        else
                         {
-                            $dbfetch = ">$reseq\n" . $' . "\n\n";
+                            $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$reseq&format=fasta&style=raw"
+                            );
+                            if ( !( defined $dbfetch ) )
+                            {
+                                for ( 0 .. 3 )
+                                {
+                                    $dbfetch = get(
+"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$reseq&format=fasta&style=raw"
+                                    );
+                                    if ( defined $dbfetch )
+                                    {
+                                        last;
+                                    }
+                                }
+                            }
+                            if ( $dbfetch =~ /\n/ )
+                            {
+                                $dbfetch = ">$reseq\n" . $' . "\n\n";
+                            }
                         }
                     }
                     else
                     {
-                        $dbfetch = get(
-"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$reseq&format=fasta&style=raw"
-                        );
-                        if ( !( defined $dbfetch ) )
-                        {
-                            for ( 0 .. 3 )
-                            {
-                                $dbfetch = get(
-"http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$reseq&format=fasta&style=raw"
-                                );
-                                if ( defined $dbfetch )
-                                {
-                                    last;
-                                }
-                            }
-                        }
-                        if ( $dbfetch =~ /\n/ )
-                        {
-                            $dbfetch = ">$reseq\n" . $' . "\n\n";
-                        }
+                        $dbfetch =
+                          get("http://www.uniprot.org/uniprot/$reseq.fasta");
                     }
+                    $dbfetch = uc $dbfetch;
                 }
-                else
-                {
-                    $dbfetch =
-                      get("http://www.uniprot.org/uniprot/$reseq.fasta");
-                }
-                $dbfetch = uc $dbfetch;
                 say {$sequences_fh} $dbfetch;
             }
             close $sequences_fh or die $!;
@@ -1472,23 +1636,62 @@ EMAIL_END
                 }
                 if ( $db !~ /nt[.]fasta/ )
                 {
-                    $email_data .=
-"<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$3>$3</a>
-</center></td>";
+                    if ( defined $hsp_pos{$3} )
+                    {
+                        $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.uniprot.org/uniprot/$3>$3</a> $hsp_pos{$3}
+</center></td>
+EMAIL_END
+                    }
+                    else
+                    {
+                        $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.uniprot.org/uniprot/$3>$3</a>
+</center></td>
+EMAIL_END
+                    }
                 }
                 else
                 {
                     if ( $uni_temp =~ /^\D{2}\_/ )
                     {
-                        $email_data .=
-"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a>
-</center></td>";
+                        if ( defined $hsp_pos{$uni_temp} )
+                        {
+                            $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a> $hsp_pos{$uni_temp}
+</center></td>
+EMAIL_END
+                        }
+                        else
+                        {
+                            $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>
+EMAIL_END
+                        }
                     }
                     else
                     {
-                        $email_data .=
-"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a>
-</center></td>";
+                        if ( defined $hsp_pos{$uni_temp} )
+                        {
+                            $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a> $hsp_pos{$uni_temp}
+</center></td>
+EMAIL_END
+                        }
+                        else
+                        {
+                            $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>
+EMAIL_END
+                        }
                     }
                 }
                 $email_data .=
@@ -1541,23 +1744,62 @@ EMAIL_END
                 }
                 if ( $db !~ /nt[.]fasta/ )
                 {
-                    $email_data .=
-"<tr bgcolor=$tdbg><td><center><a href=http://www.uniprot.org/uniprot/$2>$2</a>
-</center></td>";
+                    if ( defined $hsp_pos{$2} )
+                    {
+                        $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.uniprot.org/uniprot/$2>$2</a> $hsp_pos{$2}
+</center></td>
+EMAIL_END
+                    }
+                    else
+                    {
+                        $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.uniprot.org/uniprot/$2>$2</a>
+</center></td>
+EMAIL_END
+                    }
                 }
                 else
                 {
                     if ( $uni_temp =~ /^\D{2}\_/ )
                     {
-                        $email_data .=
-"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a>
-</center></td>";
+                        if ( defined $hsp_pos{$uni_temp} )
+                        {
+                            $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a> $hsp_pos{$uni_temp}
+</center></td>
+EMAIL_END
+                        }
+                        else
+                        {
+                            $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=refseqn&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>
+EMAIL_END
+                        }
                     }
                     else
                     {
-                        $email_data .=
-"<tr bgcolor=$tdbg><td><center><a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a>
-</center></td>";
+                        if ( defined $hsp_pos{$uni_temp} )
+                        {
+                            $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a> $hsp_pos{$uni_temp}
+</center></td>
+EMAIL_END
+                        }
+                        else
+                        {
+                            $email_data .= <<"EMAIL_END";
+<tr bgcolor=$tdbg><td><center>
+<a href=http://www.ebi.ac.uk/Tools/dbfetch/dbfetch?db=embl&id=$uni_temp&style=raw>$uni_temp</a>
+</center></td>
+EMAIL_END
+                        }
                     }
                 }
                 $email_data .=

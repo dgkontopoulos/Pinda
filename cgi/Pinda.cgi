@@ -782,11 +782,11 @@ if ( \$? != 0 )
 	my \$output = `cd /var/www/Pinda/slurm_errors && cat < \$program_output`;
 	my \$error = "/tmp/error_Pinda";
 	open my \$error_fh, '>', \$error;
-	print {\$error_fh} "Pinda has run into an error.\\n\\n";
-	print {\$error_fh} "Database: \$db\\n\\n";
-	print {\$error_fh} "Organism: \$organism\\n\\n";
-	print {\$error_fh} "Input: \$whole\\n\\n";
-	print {\$error_fh} "Pinda's Output: \$output\\n\\n";
+	print {\$error_fh} "<b>Pinda has run into an error.</b>\\n\\n";
+	print {\$error_fh} "<b>Database:</b> \$db\\n\\n";
+	print {\$error_fh} "<b>Organism:</b> \$organism\\n\\n";
+	print {\$error_fh} "<b>Input:</b> \$whole\\n\\n";
+	print {\$error_fh} "<b>Pinda's Output:</b> \$output\\n\\n";
 	close \$error_fh;
 	system("mail Pinda -s 'Pinda Error' < /tmp/error_Pinda");
 	system("rm /tmp/error_Pinda");
@@ -818,11 +818,11 @@ sub restore_job_count
 	local \$/ = "\\n";
 	while ( my \$line = <\$job_counting_fh> )
 	{
-		if ( \$line =~ /Protein[:] (\\d+)/ )
+		if ( \$line =~ /Protein[:]\\s(\\d+)/ )
 		{
 			\$protein_jobs = \$1;
 		}
-		elsif ( \$line =~ /DNA[:] (\\d+)/ )
+		elsif ( \$line =~ /DNA[:]\\s(\\d+)/ )
 		{
 			\$dna_jobs = \$1;
 		}
@@ -973,19 +973,11 @@ sub job_timer
         }
         if ( $minutes >= 2 )
         {
-            printf ' <b>%.0f minutes</b>', $minutes;
+            printf ' <b>and %.0f minutes</b>.', $minutes;
         }
         else
         {
-            printf ' <b>1 minute</b>';
-        }
-        if ( $seconds >= 2 )
-        {
-            printf ' and <b>%.0f seconds</b>.', $seconds;
-        }
-        else
-        {
-            printf ' and <b>1 second</b>.';
+            printf ' <b>and 1 minute</b>.';
         }
     }
     elsif ( defined $hours && defined $minutes )
@@ -1011,38 +1003,22 @@ sub job_timer
     {
         if ( $hours >= 2 )
         {
-            printf '<b>%.0f hours</b>', $hours;
+            printf '<b>%.0f hours</b>.', $hours;
         }
         else
         {
-            printf '<b>1 hour</b>';
-        }
-        if ( $seconds >= 2 )
-        {
-            printf ' and <b>%.0f seconds</b>.', $seconds;
-        }
-        else
-        {
-            printf ' and <b>1 second</b>.';
+            printf '<b>1 hour</b>.';
         }
     }
     elsif ( defined $minutes && defined $seconds )
     {
         if ( $minutes >= 2 )
         {
-            printf '<b>%.0f minutes</b>', $minutes;
+            printf '<b>%.0f minutes</b>.', $minutes;
         }
         else
         {
-            printf '<b>1 minute</b>';
-        }
-        if ( $seconds >= 2 )
-        {
-            printf ' and <b>%.0f seconds</b>.', $seconds;
-        }
-        else
-        {
-            printf ' and <b>1 second</b>.';
+            printf '<b>1 minute</b>.';
         }
     }
     elsif ( defined $hours )

@@ -2103,7 +2103,7 @@ sub alignment_masking
         my $resc = 0;
         my @sequence;
 
-        while ( $newline =~ />\w+/ )
+        while ( $newline =~ />[*]?[*]?[*]?\w+/ )
         {
             if ( $newline =~ /(>.+\s)/ )
             {

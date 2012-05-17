@@ -21,7 +21,7 @@ https://github.com/dgkontopoulos/Pinda.
 
 =head1 USAGE
 
-At Pinda's index page, you may enter a Protein or DNA sequence. After
+At Pinda's starting page, you may enter a Protein or DNA sequence. After
 clicking the "Continue" button, Pinda will take you to the next page,
 where you may choose the organism and the database within which the
 duplication analysis will take place. You also have to enter your email
@@ -121,9 +121,9 @@ specific gene duplications in an organism species of choice.</i>
 </div></div>
 ENDHTML
 
-############################
-#Index Page with input box.#
-############################
+###############################
+#Starting page with input box.#
+###############################
 if ( !$query->param )
 {
     ###########################################
@@ -694,7 +694,7 @@ ENDHTML
         <b>ERROR!</b> You have already submitted this sequence to Pinda.<br><br>
         If you want to resubmit it with different parameters,<br>
         please submit it again to the 
-        <a href='http://orion.mbg.duth.gr/Pinda'>index page</a>.</center></font>
+        <a href='http://orion.mbg.duth.gr/Pinda'>starting page</a>.</center></font>
 ENDHTML
         exit;
     }
@@ -936,7 +936,7 @@ ENDHTML
     <br><br><br>
     <fieldset class="fieldset-auto-width"; style="background-color: #FFFFCC; width:300px"><legend>
     Please, do <b>NOT</b> use your browser's back button to resubmit this sequence with other parameters.
-    <br><br>Rather, submit it again to the <a href="http://orion.mbg.duth.gr/Pinda">index page</a>.</font>
+    <br><br>Rather, submit it again via the <a href="http://orion.mbg.duth.gr/Pinda">starting page</a>.</font>
     </legend></fieldset>
     <br><br><br></center>
 ENDHTML

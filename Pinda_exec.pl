@@ -730,11 +730,18 @@ if ( $sequences_number > 3 )
     #Alignment, NJ tree plotting, bootstrapping and parsing.#
     #########################################################
     align( $sequences, $fnaln, $db, 1 );
-    if ( $db !~ /nt[.]fasta/ && $masking == 1 )
+    if ( $db !~ /nt[.]fasta/ && $masking == 1 && $sequences_number <= 150 )
     {
         my $conf_val =
           '/var/www/Pinda/results/final_alns/multalign/conf/' . $prid . '.tmp';
         alignment_masking( $fnaln, $conf_val ) == 0 or die $?;
+    }
+    elsif ( $db !~ /nt[.]fasta/ && $masking == 1 && $sequences_number > 150 )
+    {
+        $email_data .= <<"EMAIL_END";
+		<br><center>The resulting hits were over 150.
+		<br>Due to computational limits, masking was <b>NOT</b> performed.</center>
+EMAIL_END
     }
     my $fnaln2 = $fnaln . ".fasta";
     if ( !( -e $fnaln2 ) )

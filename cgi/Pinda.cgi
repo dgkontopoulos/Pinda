@@ -82,9 +82,13 @@ print <<"ENDHTML";
 	 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-US">
 <head>
+<meta name="title" content="Pinda - Pipeline for Intraspecies Duplication Analysis" />
 <title>Pinda - Pipeline for Intraspecies Duplication Analysis</title>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" /> 
 <link rel="stylesheet" href="../css/Pinda.css" type="text/css" media="screen">
+<meta name="description" content="Pinda is a Web service aiming to facilitate detection of
+specific gene duplications in an organism species of choice." />
+<link rel="image_src" href="http://orion.mbg.duth.gr/Pinda/pindalogo.png" />
 
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"
 type="text/javascript" charset="utf-8"></script>
@@ -189,7 +193,7 @@ elsif ( !$query->param('button') && !$query->param('dropdown') )
     {
         $db = $NT;
     }
-    elsif ( $string2 =~ /^[R|H|K|D|E|S|T|N|Q|C|U|G|P||A|V|I|L|M|F|Y|W]+$/i )
+    elsif ( $string2 =~ /^[R|H|K|D|E|S|T|N|Q|C|G|P|A|V|I|L|M|F|Y|W|X|U|O|B|Z|J]+$/i )
     {
         $db = $SWISSPROT;
     }

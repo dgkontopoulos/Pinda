@@ -16,7 +16,7 @@ A Web service aiming to facilitate detection of specific gene duplications in an
 
 ## USAGE
 
-At *Pinda*'s index page, you may enter a Protein or DNA sequence. After clicking the "Continue" button, *Pinda* will take you to the next page, where you may choose the organism and the database within which the duplication analysis will take place. You also have to enter your email address, so that you can be notified after the job is complete. Past this point, your task has entered the queue. You will receive its results via email, including a possible duplications table, a multiple sequence alignment and a dendrogram.
+At *Pinda*'s starting page, you may enter a Protein or DNA sequence. After clicking the "Continue" button, *Pinda* will take you to the next page, where you may choose the organism and the database within which the duplication analysis will take place. You also have to enter your email address, so that you can be notified after the job is complete. Past this point, your task has entered the queue. You will receive its results via email, including a possible duplications table, a multiple sequence alignment and a dendrogram.
 
 ##FLOWCHART
 
@@ -26,7 +26,7 @@ At *Pinda*'s index page, you may enter a Protein or DNA sequence. After clicking
 
 ## AUTHOR
 
-Pinda has been developed by <b>Dimitrios - Georgios Kontopoulos</b> as his final year project, under the supervision of <a href="http://utopia.duth.gr/~glykos" style="text-decoration:none">Prof. Nicholas M. Glykos</a> at the <a href="http://www.mbg.duth.gr" style="text-decoration:none">Department of Molecular Biology and Genetics</a> of <a href="http://www.duth.gr" style="text-decoration:none">Democritus University of Thrace, Greece</a>.
+Pinda has been developed by <a href="https://plus.google.com/105286472679676145021" style="text-decoration:none"><b>Dimitrios - Georgios Kontopoulos</b></a> as his final year project, under the supervision of <a href="http://utopia.duth.gr/~glykos" style="text-decoration:none">Prof. Nicholas M. Glykos</a> at the <a href="http://www.mbg.duth.gr/index.en.shtml" style="text-decoration:none">Department of Molecular Biology and Genetics</a> of <a href="http://www.duth.gr/index.en.sxhtml" style="text-decoration:none">Democritus University of Thrace, Greece</a>.
 
 ## LICENSE 
 This program is free software: you can redistribute it and/or modify it under the terms of the 

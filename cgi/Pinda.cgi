@@ -791,6 +791,7 @@ if ( \$? != 0 )
 	print {\$error_fh} "<b>Organism:</b> \$organism\\n\\n";
 	print {\$error_fh} "<b>Input:</b> \$whole\\n\\n";
 	print {\$error_fh} "<b>Pinda's Output:</b> \$output\\n\\n";
+	print {\$error_fh} "<b>Email of Submitter:</b> \$email\\n\\n";
 	close \$error_fh;
 	system("mail Pinda -s 'Pinda Error' < /tmp/error_Pinda");
 	system("rm /tmp/error_Pinda");

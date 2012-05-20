@@ -100,6 +100,20 @@ charset="utf-8"></script><script type="text/javascript" charset="utf-8">
 });
 </script>
 
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-31909639-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+
 </head>
 <body background='../background.jpg'>
 <LINK REL='SHORTCUT ICON' HREF='../pinda.ico'>
@@ -193,7 +207,8 @@ elsif ( !$query->param('button') && !$query->param('dropdown') )
     {
         $db = $NT;
     }
-    elsif ( $string2 =~ /^[R|H|K|D|E|S|T|N|Q|C|G|P|A|V|I|L|M|F|Y|W|X|U|O|B|Z|J]+$/i )
+    elsif ( $string2 =~
+        /^[R|H|K|D|E|S|T|N|Q|C|G|P|A|V|I|L|M|F|Y|W|X|U|O|B|Z|J]+$/i )
     {
         $db = $SWISSPROT;
     }

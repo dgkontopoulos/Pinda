@@ -2668,7 +2668,15 @@ sub compute_probability
             #####################
             #Calculate Z-values.#
             #####################
-            my $z = ( $1 - $mean ) / $standard_deviation;
+            my $z;
+            if ( $standard_deviation ne '0' )
+            {
+                $z = ( $1 - $mean ) / $standard_deviation;
+            }
+            else
+            {
+                $z = ( $1 - $mean ) / 0.1;
+            }
             ###########################################################
             #For positive Z-values, calculate the level of confidence.#
             ###########################################################

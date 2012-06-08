@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 ####################
 #$VERSION = '0.02';#
@@ -68,15 +68,14 @@ my $sequences_number = 0;
 my $tdcounter        = 0;
 
 my (
-    $acnumber,   $alignment,  $dbfetch,      $des,
-    $hit,        $i,          $line,         $match_line,
-    $number,     $one_gos,    $org1,         $out,
-    $out_fh,     $sequence,   $sequences_fh, $starting_point,
-    $tdbg,       @accession,  @candidate,    @cand_sans,
-    @sequences2, @realign,    @reslines,     @seq,
-    @seq2,       %common,     %hsp,          %hsp_pos,
-    %hsp_seq,    %textcommon, %textncommon,  %texts,
-    %texts2
+    $acnumber,     $dbfetch,        $hit,        $i,
+    $line,         $match_line,     $number,     $one_gos,
+    $org1,         $out,            $out_fh,     $sequence,
+    $sequences_fh, $starting_point, $tdbg,       @accession,
+    @candidate,    @cand_sans,      @sequences2, @realign,
+    @reslines,     @seq,            @seq2,       %common,
+    %hsp,          %hsp_pos,        %hsp_seq,    %textcommon,
+    %textncommon,  %texts,          %texts2
 );
 my $start_timer = time;
 
@@ -93,7 +92,7 @@ my $slurm_id;
 my $squeue_line;
 {
     local $/ = "\n";
-    open( my $squeue_fh, '<', \$slurm_queue );
+    open my $squeue_fh, '<', \$slurm_queue;
     while ( $squeue_line = <$squeue_fh> )
     {
         if ( $squeue_line =~ /1 orion/ )
@@ -206,15 +205,13 @@ if ( $db !~ /nt[.]fasta/ )
 
     if ( $lcr_filtering == 1 )
     {
-        system(
-"psiblast -query $tmp -num_alignments 7000 -num_iterations 50 -evalue $e_th -db $db -num_threads $cpu_n -out $out -seg yes"
-        );
+        system
+"psiblast -query $tmp -num_alignments 7000 -num_iterations 50 -evalue $e_th -db $db -num_threads $cpu_n -out $out -seg yes";
     }
     else
     {
-        system(
-"psiblast -query $tmp -num_alignments 7000 -num_iterations 50 -evalue $e_th -db $db -num_threads $cpu_n -out $out -seg no"
-        );
+        system
+"psiblast -query $tmp -num_alignments 7000 -num_iterations 50 -evalue $e_th -db $db -num_threads $cpu_n -out $out -seg no";
     }
     #####################################################################
     #Shorten the PSI-BLAST output file. We only need the last iteration.#
@@ -414,7 +411,7 @@ if ( $db !~ /nt[.]fasta/ )
             }
         }
     }
-    if ( defined $query_line && $query_found == '0' )
+    if ( defined $query_line && $query_found == 0 )
     {
         my $number = @seq;
         $seq[$number] = ">QUERY $organism\n" . $query_line . "\n\n";
@@ -445,7 +442,7 @@ else
     );
 
     my $hit_old = 0;
-    my ( $accession, $input_hit, $org, @organism );
+    my ( $accession, $org, @organism );
     my $list        = 0;
     my $number      = 0;
     my $query_found = 0;
@@ -482,7 +479,7 @@ else
                 ######################################
                 #Populate the organism dropdown list.#
                 ######################################
-                open( my $db_fh, '<', \$dbfetch );
+                open my $db_fh, '<', \$dbfetch;
                 local $/ = "\n";
                 while ( my $db_line = <$db_fh> )
                 {
@@ -525,7 +522,7 @@ else
                 ######################################
                 #Populate the organism dropdown list.#
                 ######################################
-                open( my $db_fh, '<', \$dbfetch );
+                open my $db_fh, '<', \$dbfetch;
                 local $/ = "\n";
                 while ( my $db_line = <$db_fh> )
                 {
@@ -597,7 +594,7 @@ else
                         {
                             $query_found = '1';
                             $one         = $accession;
-                            $accession   = "III" . $accession . "III";
+                            $accession   = 'III' . $accession . 'III';
                         }
                     }
 
@@ -637,7 +634,7 @@ else
             $hit_old = $accession;
         }
     }
-    if ( defined $query_line && $query_found == '0' )
+    if ( defined $query_line && $query_found == 0 )
     {
         my $number = @seq;
         $seq[$number] = ">IIIQUERYIII $organism\n" . $query_line . "\n";
@@ -743,10 +740,10 @@ if ( $sequences_number > 3 )
 		<br>Due to computational limits, masking was <b>NOT</b> performed.</center>
 EMAIL_END
     }
-    my $fnaln2 = $fnaln . ".fasta";
+    my $fnaln2 = $fnaln . '.fasta';
     if ( !( -e $fnaln2 ) )
     {
-        system("cp $fnaln $fnaln2");
+        system "cp $fnaln $fnaln2";
     }
     system("clustalw -INFILE=$fnaln2 -OUTFILE=$ph -tree") == 0 or die $?;
     system(
@@ -842,7 +839,7 @@ EMAIL_END
                 }
                 if ( $one_dbfetch =~ /\n/ )
                 {
-                    $one_dbfetch = ">III" . $one . "III\n" . $' . "\n\n";
+                    $one_dbfetch = '>III' . $one . "III\n" . $' . "\n\n";
                 }
             }
         }
@@ -943,7 +940,7 @@ EMAIL_END
             say {$sequences_fh} $dbfetch;
         }
         close $sequences_fh or die $!;
-        $fnaln .= "2";
+        $fnaln .= '2';
         align( $sequences, $fnaln, $db );
     }
     if ( $db !~ /nt[.]fasta/ )
@@ -1307,10 +1304,10 @@ else
               . $prid . '.tmp';
             alignment_masking( $fnaln, $conf_val ) == 0 or die $?;
         }
-        my $fnaln2 = $fnaln . ".fasta";
+        my $fnaln2 = $fnaln . '.fasta';
         if ( !( -e $fnaln2 ) )
         {
-            system("cp $fnaln $fnaln2");
+            system "cp $fnaln $fnaln2";
         }
         system("clustalw -INFILE=$fnaln2 -OUTFILE=$ph -tree") == 0 or die $?;
         rename "../results/final_alns/multalign/$prid.aln.ph",
@@ -1416,7 +1413,7 @@ EMAIL_END
                 }
                 if ( $one_dbfetch =~ /\n/ )
                 {
-                    $one_dbfetch = ">III" . $one . "III\n" . $' . "\n\n";
+                    $one_dbfetch = '>III' . $one . "III\n" . $' . "\n\n";
                 }
             }
             else
@@ -1909,7 +1906,7 @@ EMAIL_END
 ##############################################
 my $end_timer   = time;
 my $run_time    = $end_timer - $start_timer;
-my $job_average = "/var/www/Pinda/job_times";
+my $job_average = '/var/www/Pinda/job_times';
 my ( $pr_jobs, $pr_time, $dn_jobs, $dn_time );
 open my $job_average_fh, '<', $job_average;
 local $/ = "\n";
@@ -1958,7 +1955,7 @@ ENDHTML
 ##############
 send_email( $one, $email );
 
-my $job_counting = "/var/www/Pinda/running_jobs";
+my $job_counting = '/var/www/Pinda/running_jobs';
 my $protein_jobs;
 my $dna_jobs;
 open my $job_counting_fh, '<', $job_counting;
@@ -1988,14 +1985,14 @@ open $job_counting_fh, '>', $job_counting;
 say {$job_counting_fh} "Protein: $protein_jobs";
 say {$job_counting_fh} "DNA: $dna_jobs";
 close $job_counting_fh;
-system("rm /var/www/Pinda/slurm_errors/slurm-$slurm_id.out");
+system "rm /var/www/Pinda/slurm_errors/slurm-$slurm_id.out";
 
 #############################
 #Multiple Sequence Alignment#
 #############################
 sub align
 {
-    my $out = $_[1] . ".fasta";
+    my $out = $_[1] . '.fasta';
     my $db  = $_[2];
     my $again;
     if ( defined $_[3] )
@@ -2004,23 +2001,20 @@ sub align
     }
     if ( $db !~ /nt[.]fasta/ && defined $again && $masking == 1 )
     {
-        system(
-"/usr/local/bin/clustalo -i $_[0] -o $_[1] --outfmt=clu --threads=4 -v --force"
-        );
-        system(
-"/usr/local/bin/clustalo -i $_[0] -o $out --outfmt=fasta --threads=4 -v --force"
-        );
+        system
+"/usr/local/bin/clustalo -i $_[0] -o $_[1] --outfmt=clu --threads=4 -v --force";
+        system
+"/usr/local/bin/clustalo -i $_[0] -o $out --outfmt=fasta --threads=4 -v --force";
     }
     elsif (( $db !~ /nt[.]fasta/ && !( defined $again ) )
         || ( $db !~ /nt[.]fasta/ && $masking == 0 ) )
     {
-        system(
-"/usr/local/bin/clustalo -i $_[0] -o $_[1] --outfmt=clu --threads=4 -v --force"
-        );
+        system
+"/usr/local/bin/clustalo -i $_[0] -o $_[1] --outfmt=clu --threads=4 -v --force";
     }
     else
     {
-        system("/usr/local/bin/kalign -i $_[0] -o $_[1] -f clu -q");
+        system "/usr/local/bin/kalign -i $_[0] -o $_[1] -f clu -q";
         my @sequences2  = ();
         my $seq2counter = 0;
         open my $fnaln_fh, '<', $fnaln or die $!;
@@ -2032,7 +2026,7 @@ sub align
                 ##################################
                 #Add stars to the input sequence.#
                 ##################################
-                my $one_temp = "III" . $one . "III";
+                my $one_temp = 'III' . $one . 'III';
                 $line2 =~ s/$one_temp/***$one***/;
 
                 $sequences2[$seq2counter] = $line2;
@@ -2063,7 +2057,7 @@ sub align
         if ( defined $line )
         {
             open $fnaln_fh, '>', $fnaln;
-            print {$fnaln_fh} "CLUSTAL W (1.83) multiple sequence alignment";
+            print {$fnaln_fh} 'CLUSTAL W (1.83) multiple sequence alignment';
             print {$fnaln_fh} $line;
             close $fnaln_fh;
         }
@@ -2076,9 +2070,9 @@ sub align
 ############################################################
 sub alignment_masking
 {
-    my $input  = $_[0] . ".fasta";
+    my $input  = $_[0] . '.fasta';
     my $output = $_[1];
-    system("/usr/local/bin/zorro $input > $output");
+    system "/usr/local/bin/zorro $input > $output";
 
     my $counter  = 0;
     my $counter2 = 0;
@@ -2157,8 +2151,8 @@ sub alignment_masking
             say {$input_fh} q{};
         }
         close $input_fh;
-        my $clu_file = $_[0] . ".clu";
-        system("sreformat clustal $input > $clu_file");
+        my $clu_file = $_[0] . '.clu';
+        system "sreformat clustal $input > $clu_file";
     }
     elsif ( $counter2 == 0 )
     {
@@ -2173,7 +2167,7 @@ ENDHTML
 		<br><center>Most of this alignment's columns have poor confidence values.
 		<br>Masking was <b>NOT</b> performed.</center>
 ENDHTML
-        system("cp $_[0] $input");
+        system "cp $_[0] $input";
     }
     return 0;
 }
@@ -2682,7 +2676,7 @@ sub compute_probability
             ###########################################################
             if ( $z > 0.674 )
             {
-                my $erf  = erfc( $z / sqrt(2) );
+                my $erf  = erfc( $z / sqrt 2 );
                 my $prob = ( 1 - $erf ) * 100;
                 $can = $z . q{ } . $prob . q{ } . $2;
                 $realign[$re] = $2;
@@ -2704,7 +2698,7 @@ sub GOs_in_common
 {
     my @input_gos;
     my $input_counter = 0;
-    if ( $one ne "QUERY" )
+    if ( $one ne 'QUERY' )
     {
         foreach my $seq (@cand_sans)
         {
@@ -2788,7 +2782,7 @@ sub GOs_in_common
                 } while ( $dbfetch =~ /GO; GO:(\d+);\s(.+);/ );
                 foreach my $term (@go_list)
                 {
-                    $term =~ s/\?/\\?/;
+                    $term =~ s/[?]/\[?]/;
                     if ( $common_prop !~ /$term/ )
                     {
                         $ncommon_prop .= $term . "\n";
@@ -2800,8 +2794,8 @@ sub GOs_in_common
                 #######################################
                 if ( $eq_counter == 0 && $res_counter == 0 )
                 {
-                    $eq_counter  = "NA";
-                    $neq_counter = "NA";
+                    $eq_counter  = 'NA';
+                    $neq_counter = 'NA';
                 }
                 $common{$seq} = $eq_counter . q{ } . $neq_counter;
                 chomp $common_prop;
@@ -2853,7 +2847,7 @@ sub GOs_in_common
                     && $dbfetch =~ /GO; GO:(\d+);\s(.+);/ );
                 foreach my $term (@go_list)
                 {
-                    $term =~ s/\?/\\?/;
+                    $term =~ s/[?]/\[?]/;
                     $ontologies .= $term . "\n";
                 }
                 #######################################
@@ -2861,7 +2855,7 @@ sub GOs_in_common
                 #######################################
                 if ( $res_counter == 0 )
                 {
-                    $res_counter = "NA";
+                    $res_counter = 'NA';
                 }
                 $texts{$seq} = $res_counter;
                 chomp $ontologies;

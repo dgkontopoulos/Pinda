@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 ####################
 #$VERSION = '0.02';#
@@ -178,9 +178,9 @@ elsif ( !$query->param('button') && !$query->param('dropdown') )
     my $number    = 0;
 
     my (
-        $accession, $db,         $dbfetch,  $hit,       $hit_check,
-        $input_hit, $match_line, $org,      $organism,  $orghash,
-        $tmp_fh,    @input_org,  @organism, %organisms, %seq
+        $db,        $dbfetch,    $hit,      $hit_check,
+        $input_hit, $match_line, $org,      $organism,
+        $orghash,   $tmp_fh,     @organism, %organisms
     );
     print '<center>';
     my $string = $query->param('sequence');
@@ -328,7 +328,7 @@ ENDHTML
     #Avoiding browser timeout.#
     ###########################
     my $timeout = 60;
-    $SIG{ALRM} = sub { say "."; alarm $timeout; };
+    $SIG{ALRM} = sub { say q{.}; alarm $timeout; };
     alarm $timeout;
 
     ##############################
@@ -341,7 +341,7 @@ ENDHTML
     ######################
     if ( $db !~ /nt[.]fasta/ )
     {
-        say "<!--";
+        say '<!--';
         system(
 "blastp -query $tmp -db $db -evalue 0.1 -num_threads $cpu_n -out $out -seg yes"
           ) == 0
@@ -456,7 +456,7 @@ ENDHTML
         #####################################
         $orghash = freeze %organisms;
         alarm 0;
-        say "-->";
+        say '-->';
         if ( defined $organism )
         {
             print <<"ENDHTML";
@@ -719,7 +719,7 @@ ENDHTML
     }
     my $lcr_filtering;
     if ( defined $query->param('lcr_filtering')
-        && $query->param('lcr_filtering') eq 1 )
+        && $query->param('lcr_filtering') == 1 )
     {
         $lcr_filtering = '0';
     }
@@ -729,7 +729,7 @@ ENDHTML
     }
     my $masking;
     if ( defined $query->param('masking')
-        && $query->param('masking') eq 1 )
+        && $query->param('masking') == 1 )
     {
         $masking = '0';
     }
@@ -739,8 +739,8 @@ ENDHTML
     }
 
     my $job =
-        "nice -n +19 ../Pinda_exec.pl $email " . '"'
-      . $organism . '"'
+        "nice -n +19 ../Pinda_exec.pl $email " . q{"}
+      . $organism . q{"}
       . " $prid $database $lcr_filtering $one $masking";
     my $job_temp = "/var/www/Pinda/job_files/$prid";
     open my $job_fh, '>', $job_temp;
@@ -865,11 +865,10 @@ sub restore_job_count
 
 END
     close $job_pl_fh;
-    system(
-"cd /var/www/Pinda/slurm_errors/ && sbatch --mail-type=FAIL $job_temp_pl > /dev/null"
-    );
+    system
+"cd /var/www/Pinda/slurm_errors/ && sbatch --mail-type=FAIL $job_temp_pl > /dev/null";
 
-    my $job_counting = "../running_jobs";
+    my $job_counting = '../running_jobs';
     my $protein_jobs;
     my $dna_jobs;
     open my $job_counting_fh, '<', $job_counting;
@@ -901,7 +900,7 @@ END
     my $rank = $protein_jobs + $dna_jobs;
 
     my ( $pr_time, $dn_time );
-    my $job_average = "/var/www/Pinda/job_times";
+    my $job_average = '/var/www/Pinda/job_times';
     open my $job_average_fh, '<', $job_average;
     local $/ = "\n";
     while ( my $line = <$job_average_fh> )
@@ -979,8 +978,8 @@ sub job_timer
     {
         $seconds = $_[0];
     }
-    print '<br><br><font size="2" face="Courier New"><center>
-    Estimated time until job completion: ';
+    print
+'<br><br><font size="2" face="Courier New"><center>Estimated time until job completion: ';
     if ( defined $hours && defined $minutes && defined $seconds )
     {
         if ( $hours >= 2 )

@@ -984,11 +984,11 @@ sub job_timer
     {
         if ( $hours >= 2 )
         {
-            printf '<b>%.0f hours</b>,', $hours;
+            printf '<b>%.0f hours</b>', $hours;
         }
         else
         {
-            printf '<b>1 hour</b>,';
+            printf '<b>1 hour</b>';
         }
         if ( $minutes >= 2 )
         {

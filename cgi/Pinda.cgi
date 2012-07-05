@@ -963,7 +963,7 @@ ENDHTML
 
 sub job_timer
 {
-    my ( $hours, $minutes, $seconds );
+    my ( $hours, $minutes );
     if ( $_[0] > 3600 )
     {
         $hours = $_[0] / 3600;
@@ -974,103 +974,52 @@ sub job_timer
         $minutes = $_[0] / 60;
         $_[0] %= 60;
     }
-    if ( $_[0] > 0 )
-    {
-        $seconds = $_[0];
-    }
     print
-'<br><br><font size="2" face="Courier New"><center>Estimated time until job completion: ';
-    if ( defined $hours && defined $minutes && defined $seconds )
+'<br><br><font size="2" face="Courier New"><center>Estimated time until job completion: about ';
+    if ( defined $hours )
     {
         if ( $hours >= 2 )
         {
-            printf '<b>%.0f hours</b>', $hours;
+            if ( defined $minutes && $minutes > 30 )
+            {
+                $hours += 1;
+                printf '<b>%.0f hours</b>.', $hours;
+            }
+            elsif ( defined $minutes && $minutes <= 30 )
+            {
+                $hours += 0.5;
+                printf '<b>%.1f hours</b>.', $hours;
+            }
+            else
+            {
+                printf '<b>%.0f hours</b>.', $hours;
+            }
         }
         else
         {
-            printf '<b>1 hour</b>';
-        }
-        if ( $minutes >= 2 )
-        {
-            printf ' <b>and %.0f minutes</b>.', $minutes;
-        }
-        else
-        {
-            printf ' <b>and 1 minute</b>.';
+            if ( defined $minutes && $minutes > 30 )
+            {
+                printf '<b>2 hours</b>.';
+            }
+            elsif ( defined $minutes && $minutes <= 30 )
+            {
+                printf '<b>1.5 hours</b>.';
+            }
+            else
+            {
+                printf '<b>1 hour</b>.';
+            }
         }
     }
-    elsif ( defined $hours && defined $minutes )
+    else
     {
-        if ( $hours >= 2 )
-        {
-            printf '<b>%.0f hours</b>', $hours;
-        }
-        else
-        {
-            printf '<b>1 hour</b>';
-        }
-        if ( $minutes >= 2 )
-        {
-            printf ' and <b>%.0f minutes</b>.', $minutes;
-        }
-        else
-        {
-            printf ' and <b>1 minute</b>.';
-        }
-    }
-    elsif ( defined $hours && defined $seconds )
-    {
-        if ( $hours >= 2 )
-        {
-            printf '<b>%.0f hours</b>.', $hours;
-        }
-        else
+        if ( $minutes > 30 )
         {
             printf '<b>1 hour</b>.';
         }
-    }
-    elsif ( defined $minutes && defined $seconds )
-    {
-        if ( $minutes >= 2 )
-        {
-            printf '<b>%.0f minutes</b>.', $minutes;
-        }
         else
         {
-            printf '<b>1 minute</b>.';
-        }
-    }
-    elsif ( defined $hours )
-    {
-        if ( $hours >= 2 )
-        {
-            printf '<b>%.0f hours</b>.', $hours;
-        }
-        else
-        {
-            printf '<b>1 hour</b>.';
-        }
-    }
-    elsif ( defined $minutes )
-    {
-        if ( $minutes >= 2 )
-        {
-            printf '<b>%.0f minutes</b>.', $minutes;
-        }
-        else
-        {
-            printf '<b>1 minute</b>.';
-        }
-    }
-    elsif ( defined $seconds )
-    {
-        if ( $seconds >= 2 )
-        {
-            printf '<b>%.0f seconds</b>.', $seconds;
-        }
-        else
-        {
-            printf '<b>1 second</b>.';
+            printf '<b>0.5 hours</b>.';
         }
     }
     print '</font></center>';

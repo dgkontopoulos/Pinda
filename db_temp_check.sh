@@ -44,7 +44,7 @@ fi
 
 if [ -s "/tmp/whut" ]
 then
-   mail dimikont2@mbg.duth.gr -s 'DB temp files are still there!' < /tmp/whut
+   mail Pinda -s 'DB temp files are still there!' < /tmp/whut
 fi
 
 rm /tmp/whut

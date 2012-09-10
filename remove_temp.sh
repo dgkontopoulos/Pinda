@@ -22,7 +22,7 @@ remove_temp_files ()
 #########################################################################
 #Find files older than 10 days in the current directory and remove them.#
 #########################################################################
-   find . -mtime +11 -name "*" -exec rm {} \;
+   find . -type f -mtime +11 -name "*" -exec rm {} \;
 }
 
 cd /var/www/Pinda/outs/blast/

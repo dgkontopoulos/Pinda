@@ -590,7 +590,8 @@ else
                         $query_line =~ s/\s//g;
                         $match_line =~ s/\n//g;
                         $match_line =~ s/\s//g;
-                        if ( ( uc $query_line ) eq ( uc $match_line ) )
+                        if ( ( uc $query_line ) eq ( uc $match_line )
+                            && $query_found != 1 )
                         {
                             $query_found = '1';
                             $one         = $accession;
@@ -1300,7 +1301,7 @@ else
         align( $sequences, $fnaln, $db, 1 );
         if ( $db !~ /nt[.]fasta/ && $masking == 1 )
         {
-            my $conf_val = '/var/www/Pinda/results/final_alns/multalign/conf/' 
+            my $conf_val = '/var/www/Pinda/results/final_alns/multalign/conf/'
               . $prid . '.tmp';
             alignment_masking( $fnaln, $conf_val ) == 0 or die $?;
         }

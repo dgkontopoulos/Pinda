@@ -206,12 +206,12 @@ if ( $db !~ /nt[.]fasta/ )
     if ( $lcr_filtering == 1 )
     {
         system
-"psiblast -query $tmp -num_alignments 7000 -num_iterations 50 -evalue $e_th -db $db -num_threads $cpu_n -out $out -seg yes";
+"export LD_LIBRARY_PATH=/usr/lib32:\$LD_LIBRARY_PATH ; ionice -c 3 psiblast32 -query $tmp -num_alignments 7000 -num_iterations 50 -evalue $e_th -db $db -num_threads $cpu_n -out $out -seg yes";
     }
     else
     {
         system
-"psiblast -query $tmp -num_alignments 7000 -num_iterations 50 -evalue $e_th -db $db -num_threads $cpu_n -out $out -seg no";
+"export LD_LIBRARY_PATH=/usr/lib32:\$LD_LIBRARY_PATH ; ionice -c 3 psiblast32 -query $tmp -num_alignments 7000 -num_iterations 50 -evalue $e_th -db $db -num_threads $cpu_n -out $out -seg no";
     }
     #####################################################################
     #Shorten the PSI-BLAST output file. We only need the last iteration.#
@@ -424,14 +424,14 @@ else
     if ( $lcr_filtering == 1 )
     {
         system(
-"blastn -query $tmp -db $db -evalue 0.00000000001 -num_threads $cpu_n -out $out -dust yes"
+"export LD_LIBRARY_PATH=/usr/lib32:\$LD_LIBRARY_PATH ; ionice -c 3 blastn32 -query $tmp -db $db -evalue 0.00000000001 -num_threads $cpu_n -out $out -dust yes"
           ) == 0
           or die $?;
     }
     else
     {
         system(
-"blastn -query $tmp -db $db -evalue 0.00000000001 -num_threads $cpu_n -out $out -dust no"
+"export LD_LIBRARY_PATH=/usr/lib32:\$LD_LIBRARY_PATH ; ionice -c 3 blastn32 -query $tmp -db $db -evalue 0.00000000001 -num_threads $cpu_n -out $out -dust no"
           ) == 0
           or die $?;
     }

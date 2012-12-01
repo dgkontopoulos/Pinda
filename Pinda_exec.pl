@@ -2653,8 +2653,7 @@ sub compute_probability
     ############################################
     #Calculate the mean and standard deviation.#
     ############################################
-    my $mean               = mean(@numbers);
-    my $standard_deviation = stddev(@numbers);
+    my ( $mean, $standard_deviation ) = mean_stddev( \@numbers );
     foreach my $can (@candidate)
     {
         if (   $can !~ /$starting_point/
@@ -2881,4 +2880,32 @@ sub send_email
     );
     $msg->send();
     return 0;
+}
+
+##################################################################
+#Calculates the mean and standard deviation values for a dataset.#
+##################################################################
+sub mean_stddev
+{
+    my ($dataset) = @_;
+    my @dataset = @{$dataset};
+
+    my $dataset_size = 0;
+    my $sum          = 0;
+    foreach my $element (@dataset)
+    {
+        $sum += $element;
+        $dataset_size++;
+    }
+    my $mean = $sum / $dataset_size;
+
+    my $mean_diff = 0;
+    my $diff_sum  = 0;
+    foreach my $element (@dataset)
+    {
+        $mean_diff = ( $element - $mean ) * ( $element - $mean );
+        $diff_sum += $mean_diff;
+    }
+    my $stddev = sqrt( $diff_sum / ( $dataset_size - 1 ) );
+    return $mean, $stddev;
 }

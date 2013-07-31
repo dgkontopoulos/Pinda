@@ -2783,7 +2783,7 @@ sub GOs_in_common
                 foreach my $term (@go_list)
                 {
                     $term =~ s/[?]/\[?]/;
-                    if ( $common_prop !~ /$term/ )
+                    if ( $common_prop !~ /\Q$term\E/ )
                     {
                         $ncommon_prop .= $term . "\n";
                     }

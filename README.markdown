@@ -26,7 +26,7 @@ At *Pinda*'s starting page, you may enter a Protein or DNA sequence. After click
 
 ## AUTHOR
 
-Pinda has been developed by <a href="https://plus.google.com/105286472679676145021" style="text-decoration:none"><b>Dimitrios - Georgios Kontopoulos</b></a> as his final year project, under the supervision of <a href="http://utopia.duth.gr/~glykos" style="text-decoration:none">Prof. Nicholas M. Glykos</a> at the <a href="http://www.mbg.duth.gr/index.en.shtml" style="text-decoration:none">Department of Molecular Biology and Genetics</a> of <a href="http://www.duth.gr/index.en.sxhtml" style="text-decoration:none">Democritus University of Thrace, Greece</a>.
+Pinda has been developed by <a href="https://plus.google.com/105286472679676145021" style="text-decoration:none"><b>Dimitrios - Georgios Kontopoulos</b></a> as his final year project, under the supervision of <a href="http://utopia.duth.gr/~glykos" style="text-decoration:none">Prof. Nicholas M. Glykos</a> at the <a href="http://www.mbg.duth.gr/index.php/en/" style="text-decoration:none">Department of Molecular Biology and Genetics</a> of <a href="http://www.duth.gr/index.en.sxhtml" style="text-decoration:none">Democritus University of Thrace, Greece</a>.
 
 ## LICENSE 
 This program is free software: you can redistribute it and/or modify it under the terms of the 
